@@ -1,0 +1,53 @@
+# =============================================================================
+# "stable" environment - tracks the `main` branch.
+# =============================================================================
+
+global:
+  platform: gke
+
+namespace: microservices
+env: stable
+registry: ghcr.io/nubenetes/jenkins-2026-microservices
+imagePullSecret: ghcr-credentials
+
+otel:
+  collectorEndpoint: http://otel-collector-gateway.observability.svc.cluster.local:4317
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+
+services:
+  gateway:
+    type: java
+    image:
+      repository: gateway
+      tag: main
+    port: 8080
+    healthPath: /management/health
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+    env:
+      - name: SPRING_PROFILES_ACTIVE
+        value: prod,api-docs
+      - name: MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED
+        value: "true"
+
+  jhipstersamplemicroservice:
+    type: java
+    image:
+      repository: jhipstersamplemicroservice
+      tag: main
+    port: 8081
+    healthPath: /management/health
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+    env:
+      - name: SPRING_PROFILES_ACTIVE
+        value: prod,api-docs
+      - name: MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED
+        value: "true"
