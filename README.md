@@ -220,6 +220,22 @@ The agent is configured with:
 
 ---
 
+## Setup & Forking Guide
+
+If you are setting up this PoC for yourself or your organization, you must fork this configuration repository along with the main [infrastructure repository](https://github.com/nubenetes/jenkins-2026).
+
+1. **Fork the Repository**: Fork this repository (`jenkins-2026-gitops-config`) to your GitHub account/organization.
+2. **Update Main Infra Configuration**: In your fork of the infra repository (`jenkins-2026`), update `config/config.yaml` to point `jenkins.selfRepoUrl` and `microservices.git.org` to your own forks.
+3. **Configure Git Credentials**: Ensure you set `GIT_USERNAME` and `GIT_TOKEN` secrets in the infra repository Actions settings, as the Jenkins pipeline dynamically clones and commits updated image tags to this GitOps repository.
+
+## Git History and Privacy
+
+> [!NOTE]
+> This repository's Git history has been fully rewritten and sanitized to remove any private Google identity email addresses and account IDs.
+> When collaborating or contributing to this repository, please configure your local Git author settings to use GitHub's private email alias (e.g., `username@users.noreply.github.com`) to avoid accidentally leaking private email addresses in future commits.
+
+---
+
 ## Do Not Edit Manually
 
 > [!CAUTION]
