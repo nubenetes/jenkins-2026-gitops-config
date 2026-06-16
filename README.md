@@ -8,27 +8,26 @@
 
 ## Relationship to `jenkins-2026`
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│              nubenetes/jenkins-2026  (infra repo)           │
-│                                                             │
-│  scripts/   ─── bootstrap cluster, install Jenkins/ArgoCD  │
-│  jenkins/   ─── JCasC, Job DSL, shared pipeline library    │
-│  helm/      ─── Helm charts for supporting services        │
-│  argocd/    ─── ApplicationSet/Application manifests       │
-│  observability/ ── OTel collector, Grafana dashboards      │
-└────────────────────────┬────────────────────────────────────┘
-                         │ scripts/08.5-argocd.sh registers
-                         │ THIS repo as ArgoCD source
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│       nubenetes/jenkins-2026-gitops-config  (this repo)     │
-│                                                             │
-│  argocd/    ─── Application / AppSet manifests (deployed   │
-│                 FROM infra repo, stored here for clarity)   │
-│  helm/microservices/  ── Helm chart + env values files      │
-│    values-stable.yaml   ← Jenkins writes image tags here   │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph infra["nubenetes/jenkins-2026 (infra repo)"]
+        direction TB
+        i1["scripts/ &mdash; bootstrap cluster, install Jenkins/ArgoCD"]
+        i2["jenkins/ &mdash; JCasC, Job DSL, shared pipeline library"]
+        i3["helm/ &mdash; Helm charts for supporting services"]
+        i4["argocd/ &mdash; ApplicationSet/Application manifests"]
+        i5["observability/ &mdash; OTel collector, Grafana dashboards"]
+    end
+
+    subgraph gitops["nubenetes/jenkins-2026-gitops-config (this repo)"]
+        direction TB
+        g1["argocd/ &mdash; Application / AppSet manifests (deployed FROM infra repo, stored here for clarity)"]
+        g2["helm/microservices/ &mdash; Helm chart + env values files"]
+        g3["values-stable.yaml (Jenkins writes image tags here)"]
+        g2 --> g3
+    end
+
+    infra -->|scripts/08.5-argocd.sh registers THIS repo as ArgoCD source| gitops
 ```
 
 | Action | Who does it | Where |
@@ -75,11 +74,21 @@ jenkins-2026-gitops-config/
 
 Jenkins runs the `microservicesDeploy.groovy` shared-library step on every successful build:
 
-```
-1. Jenkins clones this repo
-2. yq eval -i '.services.<name>.image.tag = "<new-tag>"' helm/microservices/values-stable.yaml
-3. git commit + git push
-4. argocd app sync microservices-stable --wait   ← waits for Healthy
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Jenkins as Jenkins CI Pipeline
+    participant GitOps as jenkins-2026-gitops-config (Git)
+    participant ArgoCD as ArgoCD Server
+    participant Cluster as Kubernetes Cluster
+
+    Jenkins->>GitOps: 1. Clone GitOps repo
+    Jenkins->>GitOps: 2. yq eval -i '.services.<name>.image.tag = "<new-tag>"' helm/microservices/values-stable.yaml
+    Jenkins->>GitOps: 3. git commit + git push
+    Jenkins->>ArgoCD: 4. argocd app sync microservices-stable --wait
+    ArgoCD->>Cluster: Reconcile manifests to new image tag
+    Cluster-->>ArgoCD: Pods running & Healthy
+    ArgoCD-->>Jenkins: Sync finished
 ```
 
 The updated `values-stable.yaml` is the **only file Jenkins ever modifies** in this repo. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo.
