@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Values.namespace }}
 spec:
   hard:
-    requests.cpu: "1.5"
-    requests.memory: 3.0Gi
-    limits.cpu: "5"
-    limits.memory: 6.0Gi
+    requests.cpu: "4.0"
+    requests.memory: 6.0Gi
+    limits.cpu: "10"
+    limits.memory: 12.0Gi
