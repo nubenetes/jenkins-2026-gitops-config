@@ -10,9 +10,9 @@
 
 ```mermaid
 flowchart TD
-    infra["<b>nubenetes/jenkins-2026 (infra repo)</b><br/>• <b>scripts/</b> — bootstrap cluster, install Jenkins/ArgoCD<br/>• <b>jenkins/</b> — JCasC, Job DSL, shared pipeline library<br/>• <b>helm/</b> — Helm charts for supporting services<br/>• <b>argocd/</b> — ApplicationSet/Application manifests<br/>• <b>observability/</b> — OTel collector, Grafana dashboards"]
+    infra["jenkins-2026 (infra repo)<br/><br/>- scripts/: Bootstrap cluster<br/>- jenkins/: JCasC & shared library<br/>- helm/: Supporting Helm charts<br/>- argocd/: App/AppSet templates<br/>- observability/: OTel & Grafana"]
 
-    gitops["<b>nubenetes/jenkins-2026-gitops-config (this repo)</b><br/>• <b>argocd/</b> — Application/AppSet manifests (deployed from infra)<br/>• <b>helm/microservices/</b> — Helm chart + env values files<br/>• <b>values-stable.yaml</b> — Jenkins writes image tags here"]
+    gitops["jenkins-2026-gitops-config (this repo)<br/><br/>- argocd/: App/AppSet manifests<br/>- helm/microservices/: Helm chart<br/>- values-stable.yaml: Writes image tags"]
 
     infra -->|scripts/08.5-argocd.sh registers<br/>this repo as ArgoCD source| gitops
 ```
