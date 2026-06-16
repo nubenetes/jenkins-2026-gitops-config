@@ -60,6 +60,11 @@ spec:
                 secretKeyRef:
                   name: postgres-{{ $name }}-pguser-{{ $name }}
                   key: jdbc-uri
+            - name: SPRING_LIQUIBASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  key: jdbc-uri
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
