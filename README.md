@@ -12,22 +12,22 @@
 flowchart TD
     subgraph infra["nubenetes/jenkins-2026 (infra repo)"]
         direction TB
-        i1["scripts/ &mdash; bootstrap cluster, install Jenkins/ArgoCD"]
-        i2["jenkins/ &mdash; JCasC, Job DSL, shared pipeline library"]
-        i3["helm/ &mdash; Helm charts for supporting services"]
-        i4["argocd/ &mdash; ApplicationSet/Application manifests"]
-        i5["observability/ &mdash; OTel collector, Grafana dashboards"]
+        i1["scripts/ — bootstrap cluster,<br/>install Jenkins/ArgoCD"]
+        i2["jenkins/ — JCasC, Job DSL,<br/>shared pipeline library"]
+        i3["helm/ — Helm charts for supporting services"]
+        i4["argocd/ — ApplicationSet/Application manifests"]
+        i5["observability/ — OTel collector,<br/>Grafana dashboards"]
     end
 
     subgraph gitops["nubenetes/jenkins-2026-gitops-config (this repo)"]
         direction TB
-        g1["argocd/ &mdash; Application / AppSet manifests (deployed FROM infra repo, stored here for clarity)"]
-        g2["helm/microservices/ &mdash; Helm chart + env values files"]
-        g3["values-stable.yaml (Jenkins writes image tags here)"]
+        g1["argocd/ — Application/AppSet manifests<br/>(deployed FROM infra, stored here for clarity)"]
+        g2["helm/microservices/ — Helm chart + env values files"]
+        g3["values-stable.yaml<br/>(Jenkins writes image tags here)"]
         g2 --> g3
     end
 
-    infra -->|scripts/08.5-argocd.sh registers THIS repo as ArgoCD source| gitops
+    infra -->|scripts/08.5-argocd.sh registers<br/>THIS repo as ArgoCD source| gitops
 ```
 
 | Action | Who does it | Where |
@@ -83,12 +83,12 @@ sequenceDiagram
     participant Cluster as Kubernetes Cluster
 
     Jenkins->>GitOps: 1. Clone GitOps repo
-    Jenkins->>GitOps: 2. yq eval -i '.services.<name>.image.tag = "<new-tag>"' helm/microservices/values-stable.yaml
-    Jenkins->>GitOps: 3. git commit + git push
-    Jenkins->>ArgoCD: 4. argocd app sync microservices-stable --wait
+    Jenkins->>GitOps: 2. Update tag in values-stable.yaml
+    Jenkins->>GitOps: 3. git commit & push tag
+    Jenkins->>ArgoCD: 4. Sync microservices-stable application
     ArgoCD->>Cluster: Reconcile manifests to new image tag
     Cluster-->>ArgoCD: Pods running & Healthy
-    ArgoCD-->>Jenkins: Sync finished
+    ArgoCD-->>Jenkins: Sync finished & Healthy
 ```
 
 The updated `values-stable.yaml` is the **only file Jenkins ever modifies** in this repo. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo.
