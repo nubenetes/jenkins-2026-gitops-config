@@ -28,7 +28,6 @@
 │                 FROM infra repo, stored here for clarity)   │
 │  helm/microservices/  ── Helm chart + env values files      │
 │    values-stable.yaml   ← Jenkins writes image tags here   │
-│    values-develop.yaml  ← Jenkins writes image tags here   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -48,17 +47,16 @@
 ```
 jenkins-2026-gitops-config/
 ├── argocd/
-│   ├── microservices-appset.yaml   # ApplicationSet: generates microservices-stable + microservices-develop
-│   ├── microservices-project.yaml  # AppProject: scope for both microservices Applications
+│   ├── microservices-appset.yaml   # ApplicationSet: generates microservices-stable Application
+│   ├── microservices-project.yaml  # AppProject: scope for the microservices Application
 │   ├── headlamp-app.yaml           # Application: Headlamp Kubernetes UI
 │   ├── pgadmin-app.yaml            # Application: pgAdmin 4 Postgres UI
 │   └── pgo-app.yaml                # Application: CrunchyData Postgres Operator (PGO v5)
-└── helm/
++── helm/
     └── microservices/
         ├── Chart.yaml              # Helm chart metadata
         ├── values.yaml             # Base defaults / schema documentation
         ├── values-stable.yaml      # Stable env (namespace: microservices, branch: main)
-        ├── values-develop.yaml     # Develop env (namespace: microservices-develop, branch: main)
         └── templates/
             ├── deployment.yaml     # Deployment per service in .Values.services
             ├── service.yaml        # ClusterIP Service
@@ -78,29 +76,28 @@ jenkins-2026-gitops-config/
 Jenkins runs the `microservicesDeploy.groovy` shared-library step on every successful build:
 
 ```
-1. Jenkins clones this repo (main branch → stable, develop branch → develop)
-2. yq eval -i '.services.<name>.image.tag = "<new-tag>"' helm/microservices/values-<env>.yaml
+1. Jenkins clones this repo
+2. yq eval -i '.services.<name>.image.tag = "<new-tag>"' helm/microservices/values-stable.yaml
 3. git commit + git push
-4. argocd app sync microservices-<env> --wait   ← waits for Healthy
+4. argocd app sync microservices-stable --wait   ← waits for Healthy
 ```
 
-The updated `values-stable.yaml` / `values-develop.yaml` are the **only files Jenkins ever modifies** in this repo. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo.
+The updated `values-stable.yaml` is the **only file Jenkins ever modifies** in this repo. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo.
 
 ---
 
 ## ArgoCD Applications
 
-All five Applications are **installed by `scripts/08.5-argocd.sh`** in the infra repo. The manifests live here so ArgoCD can self-heal them via the `microservices` AppProject.
+All four Applications are **installed by `scripts/08.5-argocd.sh`** in the infra repo. The manifests live here so ArgoCD can self-heal them via the `microservices` AppProject.
 
 ### `microservices` ApplicationSet
-Generates two Applications from a single template:
+Generates the stable application:
 
 | Generated App | Namespace | Values file | Branch |
 |---------------|-----------|-------------|--------|
 | `microservices-stable` | `microservices` | `values-stable.yaml` | `main` |
-| `microservices-develop` | `microservices-develop` | `values-develop.yaml` | `main` |
 
-Both use `prune: true` + `selfHeal: true`. The `develop` environment is a sandbox — it tracks the same upstream source branch as `stable` but deploys to an isolated namespace so develop builds never affect production traffic.
+Both use `prune: true` + `selfHeal: true`. The legacy develop sandbox environment has been completely pruned.
 
 ### Standalone Applications
 
@@ -122,8 +119,8 @@ A single chart renders all services defined in `values.services.*`. Each service
 global:
   platform: gke          # gke | eks | aks | openshift
 
-namespace: microservices  # overridden per-env by values-{stable,develop}.yaml
-env: stable               # "stable" | "develop"  → deployment.environment OTel attribute
+namespace: microservices  # overridden per-env by values-stable.yaml
+env: stable               # "stable" → deployment.environment OTel attribute
 registry: ghcr.io/nubenetes/jenkins-2026-microservices
 imagePullSecret: ghcr-credentials
 
@@ -151,9 +148,8 @@ services:
 | File | `env` | `namespace` | ArgoCD App |
 |------|-------|-------------|-----------|
 | `values-stable.yaml` | `stable` | `microservices` | `microservices-stable` |
-| `values-develop.yaml` | `develop` | `microservices-develop` | `microservices-develop` |
 
-The `env` value becomes the `deployment.environment` OTel resource attribute on every trace/metric/log emitted by deployed services, enabling per-environment filtering in Grafana dashboards.
+The `env` value becomes the `deployment.environment` OTel resource attribute on every trace/metric/log emitted by deployed services, enabling environment filtering in Grafana dashboards.
 
 ---
 
@@ -165,25 +161,18 @@ Each service that has `postgres: enabled: true` in `values.yaml` gets a `Postgre
 - Automated pgBackRest backups to an in-cluster repo
 - A secret `postgres-<service>-pguser-<service>` injected into the service pod via `JDBC_DATABASE_URL`
 
-Four clusters are provisioned in total — one per service per environment:
+Two clusters are provisioned in total — one per service in the stable environment:
 
 | Cluster | Namespace |
 |---------|-----------|
 | `postgres-gateway` | `microservices` |
 | `postgres-jhipstersamplemicroservice` | `microservices` |
-| `postgres-gateway` | `microservices-develop` |
-| `postgres-jhipstersamplemicroservice` | `microservices-develop` |
 
 ---
 
 ## Branch Strategy
 
-| Branch | Purpose | ArgoCD target |
-|--------|---------|--------------|
-| `main` | Stable production-like deployments | `microservices-stable` |
-| `develop` | Sandbox / develop deployments | `microservices-develop` |
-
-Jenkins determines which branch to push to based on the infra repo branch (`JENKINS2026_REPO_BRANCH`) active on the controller at deploy time. When the infra repo runs on `main`, Jenkins updates `values-stable.yaml` on `main`. When it runs on `develop`, it updates `values-develop.yaml` on the `develop` branch of this repo.
+The GitOps repository uses the `main` branch to target `microservices-stable` deployments. Jenkins updates `values-stable.yaml` on `main` to promote new image versions. The legacy `develop` environment has been pruned.
 
 ---
 
@@ -212,6 +201,6 @@ The agent is configured with:
 ## Do Not Edit Manually
 
 > [!CAUTION]
-> `helm/microservices/values-stable.yaml` and `helm/microservices/values-develop.yaml` are **continuously overwritten by Jenkins CI** on every successful build. Manual edits to `services.<name>.image.tag` will be overwritten by the next pipeline run. All other fields (resources, env vars, healthPath) are safe to edit.
+> `helm/microservices/values-stable.yaml` is **continuously overwritten by Jenkins CI** on every successful build. Manual edits to `services.<name>.image.tag` will be overwritten by the next pipeline run. All other fields (resources, env vars, healthPath) are safe to edit.
 
 For all other infrastructure changes — Jenkins config, observability stack, ArgoCD setup, Helm charts for Headlamp/pgAdmin — make changes in [`nubenetes/jenkins-2026`](https://github.com/nubenetes/jenkins-2026) and re-run the relevant script or GitHub Actions workflow.

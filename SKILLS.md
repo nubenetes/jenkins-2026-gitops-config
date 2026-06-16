@@ -1,0 +1,36 @@
+# Developer Skills Guide - jenkins-2026-gitops-config
+
+This document details the core GitOps configuration workflows and maintenance capabilities (or "skills") available in the `jenkins-2026-gitops-config` repository.
+
+---
+
+## 🛠️ GitOps Management Skills
+
+### Skill 1: Update Microservice Deployed Image Tags
+Used by Jenkins pipelines (and manual promotions) to deploy a new version of a microservice by writing its tag to the Helm values file.
+*   **Target File:** `helm/microservices/values-stable.yaml`
+*   **Procedure:**
+    1. Update the appropriate tag under `gateway.image.tag` or `jhipstersamplemicroservice.image.tag`.
+    2. Commit and push to the `main` branch.
+
+### Skill 2: Inspect ArgoCD Sync State
+Validates if the cluster matches the configurations defined in this repository.
+*   **Command:**
+    ```bash
+    kubectl get applications -n argocd
+    ```
+
+### Skill 3: Force Sync ArgoCD Applications
+Manually triggers ArgoCD to pull configurations and synchronize with the cluster if auto-sync is delayed.
+*   **Command:**
+    ```bash
+    kubectl patch application/microservices-stable -n argocd --type merge -p '{"spec":{"source":{"targetRevision":"main"}}}'
+    ```
+
+### Skill 4: Check Pod Rollout Health
+Inspects if the newly synced application pods are up and healthy.
+*   **Command:**
+    ```bash
+    kubectl rollout status deployment/gateway -n microservices
+    kubectl rollout status deployment/jhipstersamplemicroservice -n microservices
+    ```
