@@ -31,6 +31,16 @@ services:
         value: prod,api-docs
       - name: MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED
         value: "true"
+      - name: SPRING_CLOUD_CONSUL_ENABLED
+        value: "false"
+      - name: SPRING_CLOUD_CONSUL_CONFIG_ENABLED
+        value: "false"
+      - name: JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET
+        value: "bXktc2VjcmV0LWtleS13aGljaC1zaG91bGQtYmUtY2hhbmdlZC1pbi1wcm9kdWN0aW9uLWFuZC1iZS1iYXNlNjQtZW5jb2RlZAo="
+      - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+        value: "always"
+      - name: SPRING_APPLICATION_JSON
+        value: '{"spring":{"cloud":{"gateway":{"routes":[{"id":"jhipstersamplemicroservice","uri":"http://jhipstersamplemicroservice:8081","predicates":["Path=/services/jhipstersamplemicroservice/**"],"filters":["RewritePath=/services/jhipstersamplemicroservice/(?<remaining>.*), /${remaining}"]}]}}}}'
   jhipstersamplemicroservice:
     type: java
     image:
@@ -46,3 +56,11 @@ services:
         value: prod,api-docs
       - name: MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED
         value: "true"
+      - name: SPRING_CLOUD_CONSUL_ENABLED
+        value: "false"
+      - name: SPRING_CLOUD_CONSUL_CONFIG_ENABLED
+        value: "false"
+      - name: JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET
+        value: "bXktc2VjcmV0LWtleS13aGljaC1zaG91bGQtYmUtY2hhbmdlZC1pbi1wcm9kdWN0aW9uLWFuZC1iZS1iYXNlNjQtZW5jb2RlZAo="
+      - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+        value: "always"
