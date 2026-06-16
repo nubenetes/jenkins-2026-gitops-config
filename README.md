@@ -12,17 +12,17 @@
 flowchart TD
     subgraph infra["jenkins-2026 (infra repo)"]
         direction TB
-        i1["scripts/ — bootstrap cluster,<br/>install Jenkins/ArgoCD"]
-        i2["jenkins/ — JCasC, Job DSL,<br/>shared pipeline library"]
-        i3["helm/ — Helm charts for<br/>supporting services"]
-        i4["argocd/ — ApplicationSet/<br/>Application manifests"]
-        i5["observability/ — OTel collector,<br/>Grafana dashboards"]
+        i1["scripts/ - bootstrap cluster,<br/>install Jenkins/ArgoCD"]
+        i2["jenkins/ - JCasC, Job DSL,<br/>shared pipeline library"]
+        i3["helm/ - Helm charts for<br/>supporting services"]
+        i4["argocd/ - ApplicationSet/<br/>Application manifests"]
+        i5["observability/ - OTel collector,<br/>Grafana dashboards"]
     end
 
     subgraph gitops["jenkins-2026-gitops-config (this repo)"]
         direction TB
-        g1["argocd/ — Application / AppSet manifests<br/>(deployed FROM infra repo,<br/>stored here for clarity)"]
-        g2["helm/microservices/ — Helm chart<br/>+ env values files"]
+        g1["argocd/ - Application / AppSet manifests<br/>(deployed FROM infra repo,<br/>stored here for clarity)"]
+        g2["helm/microservices/ - Helm chart<br/>+ env values files"]
         g3["values-stable.yaml<br/>(Jenkins writes image tags here)"]
         g2 --> g3
     end
