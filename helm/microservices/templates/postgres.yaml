@@ -5,6 +5,8 @@ kind: PostgresCluster
 metadata:
   name: postgres-{{ $name }}
   namespace: {{ $.Values.namespace }}
+  annotations:
+    postgres-operator.crunchydata.com/autoCreateUserSchema: "true"
 spec:
   image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-15.4-0
   postgresVersion: 15
