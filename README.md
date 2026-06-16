@@ -10,11 +10,24 @@
 
 ```mermaid
 flowchart TD
-    infra["jenkins-2026 (infra repo)<br/><br/>- scripts/: Bootstrap cluster<br/>- jenkins/: JCasC & shared library<br/>- helm/: Supporting Helm charts<br/>- argocd/: App/AppSet templates<br/>- observability/: OTel & Grafana"]
+    subgraph infra["jenkins-2026 (infra repo)"]
+        direction TB
+        i1["scripts/ — bootstrap cluster,<br/>install Jenkins/ArgoCD"]
+        i2["jenkins/ — JCasC, Job DSL,<br/>shared pipeline library"]
+        i3["helm/ — Helm charts for<br/>supporting services"]
+        i4["argocd/ — ApplicationSet/<br/>Application manifests"]
+        i5["observability/ — OTel collector,<br/>Grafana dashboards"]
+    end
 
-    gitops["jenkins-2026-gitops-config (this repo)<br/><br/>- argocd/: App/AppSet manifests<br/>- helm/microservices/: Helm chart<br/>- values-stable.yaml: Writes image tags"]
+    subgraph gitops["jenkins-2026-gitops-config (this repo)"]
+        direction TB
+        g1["argocd/ — Application / AppSet manifests<br/>(deployed FROM infra repo,<br/>stored here for clarity)"]
+        g2["helm/microservices/ — Helm chart<br/>+ env values files"]
+        g3["values-stable.yaml<br/>(Jenkins writes image tags here)"]
+        g2 --> g3
+    end
 
-    infra -->|scripts/08.5-argocd.sh registers<br/>this repo as ArgoCD source| gitops
+    i1 -->|scripts/08.5-argocd.sh registers<br/>THIS repo as ArgoCD source| g1
 ```
 
 | Action | Who does it | Where |
