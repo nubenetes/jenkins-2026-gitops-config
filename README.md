@@ -10,24 +10,11 @@
 
 ```mermaid
 flowchart TD
-    subgraph infra["jenkins-2026 (infra repo)"]
-        direction TB
-        i1["scripts/ - bootstrap cluster,<br/>install Jenkins/ArgoCD"]
-        i2["jenkins/ - JCasC, Job DSL,<br/>shared pipeline library"]
-        i3["helm/ - Helm charts for<br/>supporting services"]
-        i4["argocd/ - ApplicationSet/<br/>Application manifests"]
-        i5["observability/ - OTel collector,<br/>Grafana dashboards"]
-    end
+    infra["<b>nubenetes/jenkins-2026 (infra repo)</b><br/><br/><b>scripts/</b> - bootstrap cluster,<br/>install Jenkins/ArgoCD<br/><b>jenkins/</b> - JCasC, Job DSL,<br/>shared pipeline library<br/><b>helm/</b> - Helm charts for<br/>supporting services<br/><b>argocd/</b> - ApplicationSet/<br/>Application manifests<br/><b>observability/</b> - OTel collector,<br/>Grafana dashboards"]
 
-    subgraph gitops["jenkins-2026-gitops-config (this repo)"]
-        direction TB
-        g1["argocd/ - Application / AppSet manifests<br/>(deployed FROM infra repo,<br/>stored here for clarity)"]
-        g2["helm/microservices/ - Helm chart<br/>+ env values files"]
-        g3["values-stable.yaml<br/>(Jenkins writes image tags here)"]
-        g2 --> g3
-    end
+    gitops["<b>nubenetes/jenkins-2026-gitops-config (this repo)</b><br/><br/><b>argocd/</b> - Application /<br/>AppSet manifests<br/>(deployed FROM infra repo,<br/>stored here for clarity)<br/><b>helm/microservices/</b> - Helm chart<br/>+ env values files<br/>&nbsp;&nbsp;&nbsp;&nbsp;<b>values-stable.yaml</b> -<br/>&nbsp;&nbsp;&nbsp;&nbsp;Jenkins writes image tags here"]
 
-    i1 -->|scripts/08.5-argocd.sh registers<br/>THIS repo as ArgoCD source| g1
+    infra -->|scripts/08.5-argocd.sh registers<br/>THIS repo as ArgoCD source| gitops
 ```
 
 | Action | Who does it | Where |
