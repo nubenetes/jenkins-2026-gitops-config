@@ -10,24 +10,14 @@
 
 ```mermaid
 flowchart TD
-    infra["`**nubenetes/jenkins-2026 (infra repo)**
+    infra["nubenetes/jenkins-2026 (infra repo)<br/><br/>scripts/ - bootstrap cluster, install Jenkins/ArgoCD<br/>jenkins/ - JCasC, Job DSL, shared pipeline library<br/>helm/ - Helm charts for supporting services<br/>argocd/ - ApplicationSet/Application manifests<br/>observability/ - OTel collector, Grafana dashboards"]
 
-    **scripts/** - bootstrap cluster, install Jenkins/ArgoCD
-    **jenkins/** - JCasC, Job DSL, shared pipeline library
-    **helm/** - Helm charts for supporting services
-    **argocd/** - ApplicationSet/Application manifests
-    **observability/** - OTel collector, Grafana dashboards`"]
-
-    gitops["`**nubenetes/jenkins-2026-gitops-config (this repo)**
-
-    **argocd/** - Application / AppSet manifests (deployed FROM infra repo, stored here for clarity)
-    **helm/microservices/** - Helm chart + env values files
-    **values-stable.yaml** - Jenkins writes image tags here`"]
+    gitops["nubenetes/jenkins-2026-gitops-config (this repo)<br/><br/>argocd/ - Application / AppSet manifests<br/>(deployed FROM infra repo, stored here for clarity)<br/>helm/microservices/ - Helm chart + env values files<br/>values-stable.yaml - Jenkins writes image tags here"]
 
     infra -->|scripts/08.5-argocd.sh registers THIS repo as ArgoCD source| gitops
 
-    style infra width:500px
-    style gitops width:500px
+    style infra width:450px
+    style gitops width:450px
 ```
 
 | Action | Who does it | Where |
