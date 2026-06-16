@@ -61,6 +61,18 @@ spec:
                 secretKeyRef:
                   name: postgres-{{ $name }}-pguser-{{ $name }}
                   key: password
+            - name: SPRING_R2DBC_URL
+              value: "r2dbc:postgresql://postgres-{{ $name }}-primary.{{ $.Values.namespace }}.svc:5432/{{ $name }}"
+            - name: SPRING_R2DBC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  key: user
+            - name: SPRING_R2DBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  key: password
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
           {{- if eq $svc.type "java" }}

@@ -31,6 +31,10 @@ services:
         value: prod,api-docs
       - name: MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED
         value: "true"
+      - name: SPRING_CLOUD_CONSUL_ENABLED
+        value: "false"
+      - name: SPRING_CLOUD_CONSUL_CONFIG_ENABLED
+        value: "false"
   jhipstersamplemicroservice:
     type: java
     image:
@@ -46,3 +50,7 @@ services:
         value: prod,api-docs
       - name: MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED
         value: "true"
+      - name: SPRING_CLOUD_CONSUL_ENABLED
+        value: "false"
+      - name: SPRING_CLOUD_CONSUL_CONFIG_ENABLED
+        value: "false"
