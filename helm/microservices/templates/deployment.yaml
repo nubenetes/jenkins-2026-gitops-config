@@ -30,10 +30,19 @@ spec:
       imagePullSecrets:
         - name: {{ $.Values.imagePullSecret }}
       {{- end }}
+      {{- if eq $name "gateway" }}
+      volumes:
+        - name: gateway-cache-patch
+          configMap:
+            name: gateway-cache-patch
+            items:
+              - key: CacheConfiguration.class
+                path: CacheConfiguration.class
+      {{- end }}
       containers:
         - name: {{ $name }}
           image: "{{ $.Values.registry }}/{{ $svc.image.repository }}:{{ $svc.image.tag }}"
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: {{ $svc.port }}
@@ -51,6 +60,11 @@ spec:
                 secretKeyRef:
                   name: postgres-{{ $name }}-pguser-{{ $name }}
                   key: jdbc-uri
+            - name: SPRING_LIQUIBASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  key: jdbc-uri
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -61,6 +75,24 @@ spec:
                 secretKeyRef:
                   name: postgres-{{ $name }}-pguser-{{ $name }}
                   key: password
+            - name: SPRING_R2DBC_URL
+              value: "r2dbc:postgresql://postgres-{{ $name }}-primary.{{ $.Values.namespace }}.svc:5432/{{ $name }}?sslMode=require"
+            - name: SPRING_R2DBC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  key: user
+            - name: SPRING_R2DBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  key: password
+          {{- if eq $name "gateway" }}
+          volumeMounts:
+            - name: gateway-cache-patch
+              mountPath: /app/classes/io/github/jhipster/sample/config/CacheConfiguration.class
+              subPath: CacheConfiguration.class
+          {{- end }}
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
           {{- if eq $svc.type "java" }}

@@ -4,21 +4,17 @@
 
 global:
   platform: gke
-
 namespace: microservices
 env: stable
 registry: ghcr.io/nubenetes/jenkins-2026-microservices
 imagePullSecret: ghcr-credentials
-
 otel:
   collectorEndpoint: http://otel-collector-gateway.observability.svc.cluster.local:4317
-
 ingress:
   enabled: false
   className: ""
   annotations: {}
   host: ""
-
 services:
   gateway:
     type: java
@@ -28,14 +24,23 @@ services:
     port: 8080
     healthPath: /management/health
     resources:
-      requests: { cpu: 100m, memory: 256Mi }
-      limits: { cpu: 500m, memory: 512Mi }
+      requests: {cpu: 100m, memory: 512Mi}
+      limits: {cpu: 1000m, memory: 1024Mi}
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: prod,api-docs
       - name: MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED
         value: "true"
-
+      - name: SPRING_CLOUD_CONSUL_ENABLED
+        value: "false"
+      - name: SPRING_CLOUD_CONSUL_CONFIG_ENABLED
+        value: "false"
+      - name: JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET
+        value: "bXktc2VjcmV0LWtleS13aGljaC1zaG91bGQtYmUtY2hhbmdlZC1pbi1wcm9kdWN0aW9uLWFuZC1iZS1iYXNlNjQtZW5jb2RlZAo="
+      - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+        value: "always"
+      - name: SPRING_APPLICATION_JSON
+        value: '{"spring":{"cloud":{"gateway":{"routes":[{"id":"jhipstersamplemicroservice","uri":"http://jhipstersamplemicroservice:8081","predicates":["Path=/services/jhipstersamplemicroservice/**"],"filters":["RewritePath=/services/jhipstersamplemicroservice/(?<remaining>.*), /${remaining}"]}]}}}}'
   jhipstersamplemicroservice:
     type: java
     image:
@@ -44,10 +49,18 @@ services:
     port: 8081
     healthPath: /management/health
     resources:
-      requests: { cpu: 100m, memory: 256Mi }
-      limits: { cpu: 500m, memory: 512Mi }
+      requests: {cpu: 100m, memory: 512Mi}
+      limits: {cpu: 1000m, memory: 1024Mi}
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: prod,api-docs
       - name: MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED
         value: "true"
+      - name: SPRING_CLOUD_CONSUL_ENABLED
+        value: "false"
+      - name: SPRING_CLOUD_CONSUL_CONFIG_ENABLED
+        value: "false"
+      - name: JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET
+        value: "bXktc2VjcmV0LWtleS13aGljaC1zaG91bGQtYmUtY2hhbmdlZC1pbi1wcm9kdWN0aW9uLWFuZC1iZS1iYXNlNjQtZW5jb2RlZAo="
+      - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+        value: "always"
