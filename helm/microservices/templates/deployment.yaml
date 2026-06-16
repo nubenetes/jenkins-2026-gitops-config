@@ -30,6 +30,15 @@ spec:
       imagePullSecrets:
         - name: {{ $.Values.imagePullSecret }}
       {{- end }}
+      {{- if eq $name "gateway" }}
+      volumes:
+        - name: gateway-cache-patch
+          configMap:
+            name: gateway-cache-patch
+            items:
+              - key: CacheConfiguration.class
+                path: CacheConfiguration.class
+      {{- end }}
       containers:
         - name: {{ $name }}
           image: "{{ $.Values.registry }}/{{ $svc.image.repository }}:{{ $svc.image.tag }}"
@@ -73,6 +82,12 @@ spec:
                 secretKeyRef:
                   name: postgres-{{ $name }}-pguser-{{ $name }}
                   key: password
+          {{- if eq $name "gateway" }}
+          volumeMounts:
+            - name: gateway-cache-patch
+              mountPath: /app/classes/io/github/jhipster/sample/config/CacheConfiguration.class
+              subPath: CacheConfiguration.class
+          {{- end }}
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
           {{- if eq $svc.type "java" }}
