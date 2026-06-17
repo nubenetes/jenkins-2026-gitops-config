@@ -55,25 +55,14 @@ spec:
       annotations:
         iam.gke.io/gcp-service-account: {{ $.Values.global.gcpServiceAccount | default "jenkins-2026-sa" }}@{{ $.Values.global.gcpProject | default "jenkins-2026" }}.iam.gserviceaccount.com
 
-  # Barman Cloud Plugin configuration
-  plugins:
-    - name: barman-cloud.cloudnative-pg.io
-      isWALArchiver: true
-      parameters:
-        barmanObjectName: postgres-{{ $name }}-gcs-backup
-
----
-apiVersion: barmancloud.cnpg.io/v1
-kind: ObjectStore
-metadata:
-  name: postgres-{{ $name }}-gcs-backup
-  namespace: {{ $.Values.namespace }}
-spec:
-  configuration:
-    destinationPath: gs://{{ $.Values.global.gcsBackupBucket | default "jenkins-2026-postgres-backups" }}/{{ $name }}
-    gkeEnvironment: true
-    wal:
-      compression: gzip
+  # Native Barman backup configuration
+  backup:
+    barmanObjectStore:
+      destinationPath: gs://{{ $.Values.global.gcsBackupBucket | default "jenkins-2026-postgres-backups" }}/{{ $name }}
+      googleCredentials:
+        gkeEnvironment: true
+      wal:
+        compression: gzip
 
 ---
 apiVersion: postgresql.cnpg.io/v1
