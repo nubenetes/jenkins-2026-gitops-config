@@ -26,12 +26,12 @@ spec:
   # Write-Ahead Log (WAL) storage volume isolation
   walStorage:
     size: {{ if and $svc.postgres $svc.postgres.walStorageSize }}{{ $svc.postgres.walStorageSize }}{{ else }}1Gi{{ end }}
-    storageClassName: {{ $.Values.global.storageClass | default "premium-rwo" }}
+    storageClass: {{ $.Values.global.storageClass | default "premium-rwo" }}
 
   # Main PostgreSQL data storage volume
   storage:
     size: {{ if and $svc.postgres $svc.postgres.storageSize }}{{ $svc.postgres.storageSize }}{{ else }}1Gi{{ end }}
-    storageClassName: {{ $.Values.global.storageClass | default "premium-rwo" }}
+    storageClass: {{ $.Values.global.storageClass | default "premium-rwo" }}
 
   # Bootstrap database & user (credentials will be auto-generated in postgres-{{ $name }}-app secret)
   bootstrap:
