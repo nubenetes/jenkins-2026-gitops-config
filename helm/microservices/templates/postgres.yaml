@@ -42,8 +42,13 @@ spec:
   postgresql:
     pg_hba:
       - local all all peer
+      # Allow PgBouncer pooler connection using client certificates
+      - hostssl all cnpg_pooler_pgbouncer all cert
+      # Allow app pods in the same namespace matching selector
       - hostssl {{ $name }} {{ $name }} ${podselector:app-{{ $name }}} scram-sha-256
+      # Allow pgAdmin (in pgadmin namespace) using cluster pod CIDR
       - hostssl {{ $name }} {{ $name }} 10.20.0.0/16 scram-sha-256
+      # Reject all other host connections
       - host all all all reject
 
   # Prometheus operator metrics exporter
