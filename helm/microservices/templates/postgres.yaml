@@ -28,13 +28,11 @@ spec:
     size: {{ if and $svc.postgres $svc.postgres.storageSize }}{{ $svc.postgres.storageSize }}{{ else }}1Gi{{ end }}
     storageClassName: {{ $.Values.global.storageClass | default "premium-rwo" }}
 
-  # Bootstrap database & user
+  # Bootstrap database & user (credentials will be auto-generated in postgres-{{ $name }}-app secret)
   bootstrap:
     initdb:
       database: {{ $name }}
       owner: {{ $name }}
-      secret:
-        name: postgres-{{ $name }}-pguser-{{ $name }}
 
   # Superuser credentials secret configuration
   superuserSecret:
