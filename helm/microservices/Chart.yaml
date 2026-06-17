@@ -2,10 +2,9 @@ apiVersion: v2
 name: microservices
 description: >
   Spring Microservices Helm chart managed by the jenkins-2026 pipelines-as-code.
-  Deployed as two ArgoCD Applications: microservices-stable (namespace:
-  microservices) and microservices-develop (namespace: microservices-develop).
-  Both environments track the upstream main branch; Jenkins CI writes new image
-  tags into values-stable.yaml / values-develop.yaml via yq on every build.
+  Deployed as the ArgoCD Application: microservices-stable (namespace: microservices).
+  This environment tracks the upstream main branch; Jenkins CI writes new image
+  tags into values-stable.yaml via yq on every build.
 type: application
 version: 0.1.0
 appVersion: "1.0"
