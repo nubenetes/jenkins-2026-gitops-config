@@ -6,6 +6,7 @@
 
 ## Table of Contents
 
+- [Golden Path IDP Infrastructure](#golden-path-idp-infrastructure)
 - [Relationship to `jenkins-2026`](#relationship-to-jenkins-2026)
 - [Repository Layout](#repository-layout)
 - [How Image Tags Are Updated](#how-image-tags-are-updated)
@@ -24,6 +25,16 @@
 - [Setup & Forking Guide](#setup--forking-guide)
 - [Git History and Privacy](#git-history-and-privacy)
 - [Do Not Edit Manually](#do-not-edit-manually)
+
+## Golden Path IDP Infrastructure
+
+This repository defines the GitOps state for the modernized **Internal Developer Platform (IDP)** architecture on GKE.
+
+### Decoupled Core Components
+In alignment with 2026 Cloud-Native best practices, all platform infrastructure manifests are decoupled from CI build execution and managed via GitOps:
+* **Elastic Karpenter Autoscaling**: Configured with dynamic `NodePool` and `GCPNodeClass` manifests under `infrastructure/karpenter/` in the main repo to handle autoscaling of ephemeral build agents on Spot instances.
+* **GKE Gateway API Routing**: Secure HTTPS traffic routing for Jenkins and Headlamp is mapped under `infrastructure/gateway/` using native `Gateway`, `HTTPRoute`, and `BackendTLSPolicy` (zero-trust TLS to pods).
+* **Workload-Aware scheduling & Security**: Maps K8s v1.36 `PodGroup` (Gang scheduling) and `ConstrainedImpersonation` policies for Headlamp UI users.
 
 ---
 
