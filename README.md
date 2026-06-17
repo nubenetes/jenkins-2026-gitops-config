@@ -4,6 +4,27 @@
 >
 > This repo is the **Git source of truth for ArgoCD**. Jenkins CI writes image tags here; ArgoCD reads them and reconciles the cluster state. You do not deploy anything manually from this repo.
 
+## Table of Contents
+
+- [Relationship to `jenkins-2026`](#relationship-to-jenkins-2026)
+- [Repository Layout](#repository-layout)
+- [How Image Tags Are Updated](#how-image-tags-are-updated)
+- [ArgoCD Applications](#argocd-applications)
+  - [`microservices` ApplicationSet](#microservices-applicationset)
+  - [Standalone Applications](#standalone-applications)
+- [Helm Chart: `helm/microservices`](#helm-chart-helmmicroservices)
+  - [Key values schema](#key-values-schema)
+  - [Environments](#environments)
+- [Postgres (PGO v5)](#postgres-pgo-v5)
+- [Branch Strategy](#branch-strategy)
+  - [Why only the `main` branch?](#why-only-the-main-branch)
+  - [Would a `develop` branch make sense?](#would-a-develop-branch-make-sense)
+- [OTel Auto-Instrumentation](#otel-auto-instrumentation)
+- [Related Repositories](#related-repositories)
+- [Setup & Forking Guide](#setup--forking-guide)
+- [Git History and Privacy](#git-history-and-privacy)
+- [Do Not Edit Manually](#do-not-edit-manually)
+
 ---
 
 ## Relationship to `jenkins-2026`

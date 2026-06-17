@@ -1,8 +1,8 @@
 # =============================================================================
 # Default/documentation values for the microservices chart.
 #
-# In practice this chart is always installed with -f values-stable.yaml or
-# -f values-develop.yaml (one Helm release per environment). Those files
+# In practice this chart is always installed with -f values-stable.yaml
+# (one Helm release for the stable environment). Those files
 # define the full `services` map; this file just documents the schema and
 # provides safe fallbacks so `helm lint`/`helm template` work without -f.
 # =============================================================================
@@ -18,14 +18,14 @@ global:
 # `helm upgrade --install --namespace`).
 namespace: microservices
 
-# "stable" or "develop" - becomes the deployment.environment resource
+# Environment identifier (e.g. "stable") - becomes the deployment.environment resource
 # attribute on every OTel span/metric/log emitted by these services.
 env: stable
 
 # Container registry the pipelines push to (config/config.yaml microservices.registry).
 registry: ghcr.io/nubenetes/jenkins-2026-microservices
 
-# Name of an existing imagePullSecret. values-{stable,develop}.yaml
+# Name of an existing imagePullSecret. values-stable.yaml
 # set this to "ghcr-credentials", a kubernetes.io/dockerconfigjson secret
 # scripts/01-namespaces.sh creates in every Microservices namespace from
 # REGISTRY_USERNAME/REGISTRY_PASSWORD (empty auths if unset, so anonymous
