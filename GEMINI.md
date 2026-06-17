@@ -12,7 +12,7 @@ The project is structured as follows:
 ├── argocd/
 │   ├── headlamp-app.yaml        # ArgoCD Application definition for Headlamp UI
 │   ├── pgadmin-app.yaml         # ArgoCD Application definition for pgAdmin 4
-│   ├── pgo-app.yaml             # ArgoCD Application definition for Postgres Operator
+│   ├── cnpg-app.yaml            # ArgoCD Application definition for Postgres Operator
 │   ├── microservices-project.yaml # ArgoCD AppProject restricting sync namespaces
 │   └── microservices-appset.yaml  # ArgoCD ApplicationSet generating microservices app instances
 └── helm/

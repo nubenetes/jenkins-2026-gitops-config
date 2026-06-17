@@ -16,13 +16,14 @@
 - [Helm Chart: `helm/microservices`](#helm-chart-helmmicroservices)
   - [Key values schema](#key-values-schema)
   - [Environments](#environments)
-- [Postgres (PGO v5)](#postgres-pgo-v5)
+- [Postgres (CNPG)](#postgres-cnpg)
 - [Branch Strategy](#branch-strategy)
   - [Why only the `main` branch?](#why-only-the-main-branch)
   - [Would a `develop` branch make sense?](#would-a-develop-branch-make-sense)
 - [OTel Auto-Instrumentation](#otel-auto-instrumentation)
 - [Related Repositories](#related-repositories)
 - [Setup & Forking Guide](#setup--forking-guide)
+- [Release & Versioning Strategy](#release--versioning-strategy)
 - [Git History and Privacy](#git-history-and-privacy)
 - [Do Not Edit Manually](#do-not-edit-manually)
 
@@ -83,7 +84,7 @@ jenkins-2026-gitops-config/
 │   ├── microservices-project.yaml  # AppProject: scope for the microservices Application
 │   ├── headlamp-app.yaml           # Application: Headlamp Kubernetes UI
 │   ├── pgadmin-app.yaml            # Application: pgAdmin 4 Postgres UI
-│   └── pgo-app.yaml                # Application: CrunchyData Postgres Operator (PGO v5)
+│   └── cnpg-app.yaml               # Application: CloudNative-PG Operator (CNPG)
 +── helm/
     └── microservices/
         ├── Chart.yaml              # Helm chart metadata
@@ -95,7 +96,7 @@ jenkins-2026-gitops-config/
             ├── ingress.yaml        # Ingress (enabled per platform)
             ├── route.yaml          # OpenShift Route (enabled per platform)
             ├── instrumentation.yaml# OTel Instrumentation CR (auto-instruments JVM services)
-            ├── postgres.yaml       # PostgresCluster CR per service (PGO v5)
+            ├── postgres.yaml       # CNPG Cluster & Pooler CR per service
             ├── limitrange.yaml     # Default container resource limits
             ├── resourcequota.yaml  # Namespace resource cap
             └── _helpers.tpl        # Shared template helpers
@@ -147,7 +148,7 @@ Both use `prune: true` + `selfHeal: true`. The legacy develop sandbox environmen
 |-------------|--------|-----------------|-------|
 | `headlamp` | `helm/headlamp/values.yaml` (infra repo) | `headlamp` | Kubernetes UI, Google OIDC |
 | `pgadmin` | `helm/pgadmin/` (infra repo) | `pgadmin` | Postgres admin UI |
-| `postgres-operator` | `CrunchyData/postgres-operator@v5.7.9` | `postgres-operator` | PGO, ServerSideApply |
+| `cnpg-operator` | `cloudnative-pg/cloudnative-pg` | `cnpg-system` | CNPG, ServerSideApply |
 
 ---
 
@@ -195,13 +196,14 @@ The `env` value becomes the `deployment.environment` OTel resource attribute on 
 
 ---
 
-## Postgres (PGO v5)
+## Postgres (CNPG)
 
-Each service that has `postgres: enabled: true` in `values.yaml` gets a `PostgresCluster` CR templated by `templates/postgres.yaml`. The CrunchyData Postgres Operator (installed via the `postgres-operator` Application) reconciles these CRs into:
+Each service that has `postgres: enabled: true` in `values.yaml` gets CNPG `Cluster` and `Pooler` CRs templated by `templates/postgres.yaml`. The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
 
-- A highly-available PostgreSQL 16 cluster (primary + replica)
-- Automated pgBackRest backups to an in-cluster repo
-- A secret `postgres-<service>-pguser-<service>` injected into the service pod via `JDBC_DATABASE_URL`
+- A highly-available PostgreSQL 16 database tier (zonal HA with dynamic primary promotion)
+- Connection pooling managed via native PgBouncer pooler deployments
+- Automated Barman Object Store backups targeting Google Cloud Storage (GCS)
+- A secret `postgres-<service>-app` injected into the service pod via `SPRING_DATASOURCE_URL` or `SPRING_R2DBC_URL`
 
 Two clusters are provisioned in total — one per service in the stable environment:
 
@@ -259,6 +261,20 @@ If you are setting up this PoC for yourself or your organization, you must fork 
 1. **Fork the Repository**: Fork this repository (`jenkins-2026-gitops-config`) to your GitHub account/organization.
 2. **Update Main Infra Configuration**: In your fork of the infra repository (`jenkins-2026`), update `config/config.yaml` to point `jenkins.selfRepoUrl` and `microservices.git.org` to your own forks.
 3. **Configure Git Credentials**: Ensure you set `GIT_USERNAME` and `GIT_TOKEN` secrets in the infra repository Actions settings, as the Jenkins pipeline dynamically clones and commits updated image tags to this GitOps repository.
+
+---
+
+## Release & Versioning Strategy
+
+This GitOps configuration repository is released and tagged in lockstep with the main [infrastructure repository](https://github.com/nubenetes/jenkins-2026):
+
+* **Git Tags**: Every stable release of the infrastructure stack (e.g. `v0.9.0`) has a matching tag `v0.9.0` applied to both repositories.
+* **Release Flow**:
+  1. Infrastructure modifications and Helm chart configurations are tested on `develop`.
+  2. A Pull Request is opened to merge `develop` into `main`.
+  3. Once merged, a GitHub Release is drafted explaining the changes, and the tag is pushed to remote.
+
+---
 
 ## Git History and Privacy
 

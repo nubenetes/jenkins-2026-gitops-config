@@ -62,24 +62,24 @@ spec:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  name: postgres-{{ $name }}-app
                   key: username
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  name: postgres-{{ $name }}-app
                   key: password
             - name: SPRING_R2DBC_URL
               value: "r2dbc:postgresql://postgres-{{ $name }}-pooler.{{ $.Values.namespace }}.svc:5432/{{ $name }}?sslMode=require"
             - name: SPRING_R2DBC_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  name: postgres-{{ $name }}-app
                   key: username
             - name: SPRING_R2DBC_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-{{ $name }}-pguser-{{ $name }}
+                  name: postgres-{{ $name }}-app
                   key: password
           {{- if eq $name "gateway" }}
           volumeMounts:
