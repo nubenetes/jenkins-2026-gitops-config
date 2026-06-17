@@ -1,60 +1,107 @@
 {{- range $name, $svc := .Values.services }}
 ---
-apiVersion: postgres-operator.crunchydata.com/v1beta1
-kind: PostgresCluster
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
 metadata:
   name: postgres-{{ $name }}
   namespace: {{ $.Values.namespace }}
-  annotations:
-    postgres-operator.crunchydata.com/autoCreateUserSchema: "true"
+  labels:
+    app.kubernetes.io/name: postgres-{{ $name }}
+    {{- include "microservices.labels" $ | nindent 4 }}
 spec:
-  image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-15.4-0
-  postgresVersion: 15
-  instances:
-    - name: instance1
-      resources:
-        requests:
-          cpu: 100m
-          memory: 256Mi
-        limits:
-          cpu: 500m
-          memory: 512Mi
-      dataVolumeClaimSpec:
-        accessModes:
-          - "ReadWriteOnce"
-        resources:
-          requests:
-            storage: 1Gi
-  backups:
-    pgbackrest:
-      image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.47-0
-      jobs:
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 200m
-            memory: 256Mi
-      repoHost:
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 200m
-            memory: 256Mi
-      repos:
-      - name: repo1
-        volume:
-          volumeClaimSpec:
-            accessModes:
-              - "ReadWriteOnce"
-            resources:
-              requests:
-                storage: 1Gi
-  users:
-    - name: {{ $name }}
-      databases:
-        - {{ $name }}
+  instances: 3
+
+  # Write-Ahead Log (WAL) storage volume isolation
+  walStorage:
+    size: {{ if and $svc.postgres $svc.postgres.walStorageSize }}{{ $svc.postgres.walStorageSize }}{{ else }}1Gi{{ end }}
+    storageClassName: {{ $.Values.global.storageClass | default "premium-rwo" }}
+
+  # Main PostgreSQL data storage volume
+  storage:
+    size: {{ if and $svc.postgres $svc.postgres.storageSize }}{{ $svc.postgres.storageSize }}{{ else }}1Gi{{ end }}
+    storageClassName: {{ $.Values.global.storageClass | default "premium-rwo" }}
+
+  # Bootstrap database & user
+  bootstrap:
+    initdb:
+      database: {{ $name }}
+      owner: {{ $name }}
+      secret:
+        name: postgres-{{ $name }}-pguser-{{ $name }}
+
+  # Superuser credentials secret configuration
+  superuserSecret:
+    name: postgres-{{ $name }}-superuser
+
+  # Host-Based Authentication (pg_hba.conf) and podSelectorRefs
+  postgresql:
+    podSelectorRefs:
+      - name: app-{{ $name }}
+        matchLabels:
+          app.kubernetes.io/name: {{ $name }}
+    pg_hba:
+      - local all all peer
+      - hostssl {{ $name }} {{ $name }} ${podselector:app-{{ $name }}} scram-sha-256
+      - hostssl {{ $name }} {{ $name }} 10.20.0.0/16 scram-sha-256
+      - host all all all reject
+
+  # Prometheus operator metrics exporter
+  monitoring:
+    enablePodMonitor: true
+
+  # GKE Workload Identity service account annotations
+  serviceAccountTemplate:
+    metadata:
+      annotations:
+        iam.gke.io/gcp-service-account: {{ $.Values.global.gcpServiceAccount | default "jenkins-2026-sa" }}@{{ $.Values.global.gcpProject | default "jenkins-2026" }}.iam.gserviceaccount.com
+
+  # Barman Cloud Plugin configuration
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: postgres-{{ $name }}-gcs-backup
+
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: postgres-{{ $name }}-gcs-backup
+  namespace: {{ $.Values.namespace }}
+spec:
+  configuration:
+    destinationPath: gs://{{ $.Values.global.gcsBackupBucket | default "jenkins-2026-postgres-backups" }}/{{ $name }}
+    gkeEnvironment: true
+    wal:
+      compression: gzip
+
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-{{ $name }}-daily-backup
+  namespace: {{ $.Values.namespace }}
+spec:
+  schedule: "0 0 0 * * *"
+  cluster:
+    name: postgres-{{ $name }}
+  backupOwnerReference: self
+  immediate: false
+
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: postgres-{{ $name }}-pooler
+  namespace: {{ $.Values.namespace }}
+  labels:
+    app.kubernetes.io/name: postgres-{{ $name }}-pooler
+    {{- include "microservices.labels" $ | nindent 4 }}
+spec:
+  cluster:
+    name: postgres-{{ $name }}
+  instances: 3
+  type: rw
+  pgBouncer:
+    poolMode: session
 {{- end }}
