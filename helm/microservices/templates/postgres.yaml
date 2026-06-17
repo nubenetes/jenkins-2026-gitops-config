@@ -11,6 +11,11 @@ metadata:
 spec:
   instances: 3
 
+  # Zonal anti-affinity for high availability
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: topology.kubernetes.io/zone
+
   # Dynamic pod selection for security rules
   podSelectorRefs:
     - name: app-{{ $name }}
