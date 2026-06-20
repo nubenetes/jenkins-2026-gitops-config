@@ -1,0 +1,45 @@
+{{- /*
+Structured (ECS JSON) console logging for the jenkins-2026 microservices.
+
+The JHipster apps ship a logback-spring.xml that logs plain text to the
+console, which their custom CONSOLE_LOG_PATTERN keeps even when Spring Boot's
+native `logging.structured.format.console` is requested. This ConfigMap is
+mounted at /etc/logback and selected via the LOGGING_CONFIG env var (see
+deployment.yaml), overriding that file with one that emits ECS JSON to stdout.
+
+Result: logs land in Loki as structured records (message, log.level, and the
+trace_id/span_id the OTel Java agent injects into the MDC), which the
+jenkins-2026 Grafana dashboards parse and which enables trace<->log
+correlation. StructuredLogEncoder ships in spring-boot, so no extra
+dependency (and no janino) is required.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: microservices-logback
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "microservices.labels" . | nindent 4 }}
+data:
+  logback.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <configuration>
+      <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+          <format>ecs</format>
+        </encoder>
+      </appender>
+
+      <!-- Quiet noisy frameworks (parity with the JHipster default config). -->
+      <logger name="org.springframework" level="WARN"/>
+      <logger name="org.apache" level="WARN"/>
+      <logger name="org.hibernate" level="WARN"/>
+      <logger name="com.netflix" level="WARN"/>
+      <logger name="io.netty" level="WARN"/>
+      <logger name="reactor" level="WARN"/>
+      <logger name="liquibase" level="WARN"/>
+
+      <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+      </root>
+    </configuration>
