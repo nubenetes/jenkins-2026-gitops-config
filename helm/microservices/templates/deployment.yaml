@@ -30,14 +30,19 @@ spec:
       imagePullSecrets:
         - name: {{ $.Values.imagePullSecret }}
       {{- end }}
-      {{- if eq $name "gateway" }}
+      {{- if eq $svc.type "java" }}
       volumes:
+        - name: logback-config
+          configMap:
+            name: microservices-logback
+        {{- if eq $name "gateway" }}
         - name: gateway-cache-patch
           configMap:
             name: gateway-cache-patch
             items:
               - key: CacheConfiguration.class
                 path: CacheConfiguration.class
+        {{- end }}
       {{- end }}
       containers:
         - name: {{ $name }}
@@ -51,6 +56,13 @@ spec:
               value: {{ $name }}
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment={{ $.Values.env }},service.namespace=jenkins-2026"
+            {{- if eq $svc.type "java" }}
+            # Override the app's plain-text logback-spring.xml with the
+            # ECS-JSON config mounted from the microservices-logback ConfigMap
+            # (see templates/logback-configmap.yaml) so logs are structured.
+            - name: LOGGING_CONFIG
+              value: /etc/logback/logback.xml
+            {{- end }}
             {{- range $svc.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
@@ -81,11 +93,16 @@ spec:
                 secretKeyRef:
                   name: postgres-{{ $name }}-app
                   key: password
-          {{- if eq $name "gateway" }}
+          {{- if eq $svc.type "java" }}
           volumeMounts:
+            - name: logback-config
+              mountPath: /etc/logback
+              readOnly: true
+            {{- if eq $name "gateway" }}
             - name: gateway-cache-patch
               mountPath: /app/classes/io/github/jhipster/sample/config/CacheConfiguration.class
               subPath: CacheConfiguration.class
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
