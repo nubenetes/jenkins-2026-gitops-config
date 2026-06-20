@@ -62,6 +62,13 @@ spec:
             # (see templates/logback-configmap.yaml) so logs are structured.
             - name: LOGGING_CONFIG
               value: /etc/logback/logback.xml
+            # Enable Reactor automatic context propagation so the OTel agent's
+            # trace_id/span_id reach the logging MDC in reactive (WebFlux)
+            # apps - without this the MDC is thread-local-only and stays empty
+            # across Reactor operators, so logs carry no trace context and the
+            # logs->traces correlation has nothing to link.
+            - name: SPRING_REACTOR_CONTEXT_PROPAGATION
+              value: "auto"
             {{- end }}
             {{- range $svc.env }}
             - name: {{ .name }}
