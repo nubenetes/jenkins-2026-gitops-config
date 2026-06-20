@@ -32,9 +32,6 @@ data:
 
       <!-- Quiet noisy frameworks (parity with the JHipster default config). -->
       <logger name="org.springframework" level="WARN"/>
-      <!-- TEMP (validation): per-request DEBUG logs to verify trace_id reaches the MDC. -->
-      <logger name="org.springframework.web" level="DEBUG"/>
-      <logger name="org.springframework.cloud.gateway" level="DEBUG"/>
       <logger name="org.apache" level="WARN"/>
       <logger name="org.hibernate" level="WARN"/>
       <logger name="com.netflix" level="WARN"/>
