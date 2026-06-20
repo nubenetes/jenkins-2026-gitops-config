@@ -51,13 +51,6 @@ spec:
               value: {{ $name }}
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment={{ $.Values.env }},service.namespace=jenkins-2026"
-            # Spring Boot 3.4+ native structured logging: emit ECS-format JSON
-            # to the console so logs land in Loki as structured records
-            # (message, log.level, trace.id/span.id from the OTel MDC), which is
-            # what the jenkins-2026 Grafana dashboards parse and what enables
-            # trace<->log correlation. No app code change required.
-            - name: LOGGING_STRUCTURED_FORMAT_CONSOLE
-              value: "ecs"
             {{- range $svc.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
