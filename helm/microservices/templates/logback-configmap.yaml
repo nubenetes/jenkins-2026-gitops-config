@@ -39,6 +39,18 @@ data:
       <logger name="reactor" level="WARN"/>
       <logger name="liquibase" level="WARN"/>
 
+      <!--
+        Surface the JHipster apps' own business logs for logs<->metrics<->traces
+        correlation. At DEBUG the apps' AOP LoggingAspect
+        (io.github.jhipster.sample.aop.logging.LoggingAspect) logs @Service /
+        @RestController method enter/exit *inside* the request span, so each line
+        carries the agent-injected trace_id/span_id. Framework loggers above stay
+        at WARN, so this adds signal (business logs) without the framework
+        firehose. Drop back to INFO once correlation has been validated if the
+        DEBUG volume is too costly for the log backend.
+      -->
+      <logger name="io.github.jhipster.sample" level="DEBUG"/>
+
       <root level="INFO">
         <appender-ref ref="CONSOLE"/>
       </root>
