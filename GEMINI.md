@@ -35,7 +35,7 @@ The project is structured as follows:
 
 ## 💡 Troubleshooting and Optimization Tips
 
-1. **Pruned Sandbox**: The develop/sandbox environments have been completely pruned. All active deployments now go exclusively to the `microservices` namespace using `values-stable.yaml`. Do not try to restore or deploy files under a develop track.
+1. **Develop tier disabled by default**: Only `values-stable.yaml` / the `microservices` namespace is active; the AppSet generates just `microservices-stable`. `values-develop.yaml` remains **dormant** in the chart and is activated only when `microservices.developTrackEnabled` is set in the infra repo — don't assume a develop deployment exists unless that flag is on.
 2. **Checking Application Status**:
    ```bash
    kubectl get applications -n argocd

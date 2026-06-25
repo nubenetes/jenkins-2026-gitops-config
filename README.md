@@ -17,6 +17,7 @@
   - [Key values schema](#key-values-schema)
   - [Environments](#environments)
 - [Postgres (CNPG)](#postgres-cnpg)
+- [NetworkPolicies (zero-trust)](#networkpolicies-zero-trust)
 - [Branch Strategy](#branch-strategy)
   - [Why only the `main` branch?](#why-only-the-main-branch)
   - [Would a `develop` branch make sense?](#would-a-develop-branch-make-sense)
@@ -85,21 +86,25 @@ jenkins-2026-gitops-config/
 │   ├── headlamp-app.yaml           # Application: Headlamp Kubernetes UI
 │   ├── pgadmin-app.yaml            # Application: pgAdmin 4 Postgres UI
 │   └── cnpg-app.yaml               # Application: CloudNative-PG Operator (CNPG)
-+── helm/
+└── helm/
     └── microservices/
-        ├── Chart.yaml              # Helm chart metadata
-        ├── values.yaml             # Base defaults / schema documentation
-        ├── values-stable.yaml      # Stable env (namespace: microservices, branch: main)
+        ├── Chart.yaml                 # Helm chart metadata
+        ├── values.yaml                # Base defaults / schema documentation
+        ├── values-stable.yaml         # Stable env (namespace: microservices, branch: main)
+        ├── values-develop.yaml        # Dormant develop-tier values (only used if a develop track is re-enabled)
         └── templates/
-            ├── deployment.yaml     # Deployment per service in .Values.services
-            ├── service.yaml        # ClusterIP Service
-            ├── ingress.yaml        # Ingress (enabled per platform)
-            ├── route.yaml          # OpenShift Route (enabled per platform)
-            ├── instrumentation.yaml# OTel Instrumentation CR (auto-instruments JVM services)
-            ├── postgres.yaml       # CNPG Cluster & Pooler CR per service
-            ├── limitrange.yaml     # Default container resource limits
-            ├── resourcequota.yaml  # Namespace resource cap
-            └── _helpers.tpl        # Shared template helpers
+            ├── deployment.yaml        # Deployment per service in .Values.services
+            ├── service.yaml           # ClusterIP Service
+            ├── ingress.yaml           # Ingress (enabled per platform)
+            ├── route.yaml             # Gateway API HTTPRoute / OpenShift Route (per platform)
+            ├── instrumentation.yaml   # OTel Instrumentation CR (auto-instruments JVM services)
+            ├── postgres.yaml          # CNPG Cluster & Pooler CR per service
+            ├── networkpolicies.yaml   # Zero-trust: default-deny + gateway / microservice / postgres policies
+            ├── logback-configmap.yaml # ECS-JSON structured-logging config
+            ├── gateway-cache-patch.yaml # gateway Hazelcast cache config
+            ├── limitrange.yaml        # Default container resource limits
+            ├── resourcequota.yaml     # Namespace resource cap
+            └── _helpers.tpl           # Shared template helpers
 ```
 
 ---
@@ -140,7 +145,7 @@ Generates the stable application:
 |---------------|-----------|-------------|--------|
 | `microservices-stable` | `microservices` | `values-stable.yaml` | `main` |
 
-Both use `prune: true` + `selfHeal: true`. The legacy develop sandbox environment has been completely pruned.
+It uses `prune: true` + `selfHeal: true`. Only the **stable** application is generated; the develop tier is **disabled by default** (the AppSet emits a `develop` element only when `microservices.developTrackEnabled` is set in the infra repo). The dormant `values-develop.yaml` stays in the chart for when that track is re-enabled — see [Branch Strategy](#branch-strategy).
 
 ### Standalone Applications
 
@@ -200,7 +205,7 @@ The `env` value becomes the `deployment.environment` OTel resource attribute on 
 
 Each service that has `postgres: enabled: true` in `values.yaml` gets CNPG `Cluster` and `Pooler` CRs templated by `templates/postgres.yaml`. The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
 
-- A highly-available PostgreSQL 16 database tier (zonal HA with dynamic primary promotion)
+- A highly-available PostgreSQL database tier — **3 instances**, zonal anti-affinity, dynamic primary promotion (PostgreSQL version = the CNPG operator's default image; not pinned in the chart)
 - Connection pooling managed via native PgBouncer pooler deployments
 - Automated Barman Object Store backups targeting Google Cloud Storage (GCS)
 - A secret `postgres-<service>-app` injected into the service pod via `SPRING_DATASOURCE_URL` or `SPRING_R2DBC_URL`
@@ -214,13 +219,31 @@ Two clusters are provisioned in total — one per service in the stable environm
 
 ---
 
+## NetworkPolicies (zero-trust)
+
+`templates/networkpolicies.yaml` ships a default-deny posture for the `microservices`
+namespace (enforced by GKE **Dataplane V2 / Cilium-eBPF** in the infra repo). Four
+policies:
+
+| Policy | Applies to | Key ingress | Key egress |
+|---|---|---|---|
+| `default-deny` | all pods | none | CoreDNS (`kube-system:53`) only |
+| `gateway-policy` | `gateway` pod | **8080** (from the Gateway/LB) | jhipster **8081**, its Postgres **5432**, OTLP `observability` **4317/4318** |
+| `microservice-policy` | `jhipstersamplemicroservice` pod | **8081** from the `gateway` pod **and** the **`tekton-ci` + `jenkins`** namespaces (so CI smoke tests can hit `/management/health`) | its Postgres **5432**, OTLP **4317/4318** |
+| `postgres-policy` | `cnpg.io/cluster` pods | **5432** from the app pods, `pgadmin` ns, intra-cluster | CNPG replication + **443** |
+
+The CI-namespace ingress on 8081 is what lets the Jenkins/Tekton smoke stage reach the
+microservice under enforcement (see [`jenkins-2026` docs/501](https://github.com/nubenetes/jenkins-2026/blob/main/docs/501-PLATFORM_OPERATIONS.md#networkpolicy-matrix)).
+
+---
+
 ## Branch Strategy
 
-The GitOps repository uses the `main` branch to target `microservices-stable` deployments. Jenkins updates [values-stable.yaml](file:///home/inafev/github/jenkins-2026-gitops-config/helm/microservices/values-stable.yaml) on `main` to promote new image versions. The legacy `develop` environment has been pruned.
+The GitOps repository uses the `main` branch to target `microservices-stable` deployments. Jenkins updates `helm/microservices/values-stable.yaml` on `main` to promote new image versions. The `develop` tier is **disabled by default** (only `microservices-stable` is generated); its `values-develop.yaml` stays dormant in the chart and is activated only when `microservices.developTrackEnabled` is set in the infra repo.
 
 ### Why only the `main` branch?
 
-1. **Single Environment Target**: In this unified model, the legacy development sandbox has been pruned, leaving only a single stable target namespace (`microservices`).
+1. **Single Environment Target**: In this unified model the develop tier is disabled by default, leaving a single active target namespace (`microservices`); the develop track can be re-enabled (see below).
 2. **Simplified Promotion**: The Jenkins CI pipeline writes image tags directly inside [values-stable.yaml](file:///home/inafev/github/jenkins-2026-gitops-config/helm/microservices/values-stable.yaml) on the `main` branch of the GitOps repository.
 
 ### Would a `develop` branch make sense?
