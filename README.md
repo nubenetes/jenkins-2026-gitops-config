@@ -205,7 +205,7 @@ The `env` value becomes the `deployment.environment` OTel resource attribute on 
 
 Each service that has `postgres: enabled: true` in `values.yaml` gets CNPG `Cluster` and `Pooler` CRs templated by `templates/postgres.yaml`. The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
 
-- A highly-available PostgreSQL database tier — **3 instances**, zonal anti-affinity, dynamic primary promotion (PostgreSQL version = the CNPG operator's default image; not pinned in the chart)
+- A highly-available **PostgreSQL 18.3** database tier — **3 instances**, zonal anti-affinity, dynamic primary promotion. The image is **pinned** explicitly (`spec.imageName`, default `ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie`, overridable via `global.postgresImage`) so the DB version is reproducible; bump it deliberately
 - Connection pooling managed via native PgBouncer pooler deployments
 - Automated Barman Object Store backups targeting Google Cloud Storage (GCS)
 - A secret `postgres-<service>-app` injected into the service pod via `SPRING_DATASOURCE_URL` or `SPRING_R2DBC_URL`

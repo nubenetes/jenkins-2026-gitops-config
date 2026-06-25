@@ -14,6 +14,11 @@ global:
   # config/config.yaml (see vars/microservicesDeploy.groovy).
   platform: gke
 
+  # Pinned PostgreSQL image for the CNPG Clusters (templates/postgres.yaml).
+  # Explicit so the DB version is reproducible/version-controlled rather than
+  # inheriting the CNPG operator's floating default. Bump deliberately.
+  postgresImage: ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie
+
 # Kubernetes namespace this release is installed into (also passed to
 # `helm upgrade --install --namespace`).
 namespace: microservices
