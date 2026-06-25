@@ -45,6 +45,15 @@ spec:
 
   # Host-Based Authentication (pg_hba.conf) rules using pod selector refs
   postgresql:
+    {{- if $.Values.dbObservability.enabled }}
+    # Grafana Cloud Database Observability (experimental, opt-in): pg_stat_statements
+    # must be preloaded so query-performance telemetry is available. Changing this
+    # triggers a CNPG rolling restart.
+    parameters:
+      shared_preload_libraries: "pg_stat_statements"
+      pg_stat_statements.max: "10000"
+      pg_stat_statements.track: "all"
+    {{- end }}
     pg_hba:
       - local all all peer
       # Allow PgBouncer pooler connection using client certificates
@@ -53,12 +62,33 @@ spec:
       - hostssl {{ $name }} {{ $name }} ${podselector:app-{{ $name }}} scram-sha-256
       # Allow pgAdmin (in pgadmin namespace) using cluster pod CIDR
       - hostssl {{ $name }} {{ $name }} 10.20.0.0/16 scram-sha-256
+      {{- if $.Values.dbObservability.enabled }}
+      # Allow the dbo11y monitoring role (Grafana Alloy in the observability ns) from
+      # the cluster pod CIDR over TLS — read-only query/stat collection.
+      - hostssl {{ $name }} dbo11y 10.20.0.0/16 scram-sha-256
+      {{- end }}
       # Reject all other host connections
       - host all all all reject
 
   # Prometheus operator metrics exporter
   monitoring:
     enablePodMonitor: true
+
+  {{- if $.Values.dbObservability.enabled }}
+  # Least-privilege role for Grafana Cloud Database Observability: LOGIN + pg_monitor
+  # (read-only stats). Password lives in the postgres-{{ $name }}-dbo11y Secret,
+  # created out-of-band by scripts/01-namespaces.sh in jenkins-2026 (not committed).
+  managed:
+    roles:
+      - name: dbo11y
+        ensure: present
+        login: true
+        superuser: false
+        inRoles:
+          - pg_monitor
+        passwordSecret:
+          name: postgres-{{ $name }}-dbo11y
+  {{- end }}
 
   # GKE Workload Identity service account annotations
   serviceAccountTemplate:
@@ -104,4 +134,24 @@ spec:
   type: rw
   pgbouncer:
     poolMode: session
+
+{{- if $.Values.dbObservability.enabled }}
+---
+# Declaratively ensure the pg_stat_statements extension exists in the application
+# database (CNPG Database CR, 1.25+). Works on already-bootstrapped clusters, unlike
+# bootstrap.initdb.postInitApplicationSQL which only runs on first init.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: postgres-{{ $name }}-dbo11y
+  namespace: {{ $.Values.namespace }}
+spec:
+  cluster:
+    name: postgres-{{ $name }}
+  name: {{ $name }}
+  ensure: present
+  extensions:
+    - name: pg_stat_statements
+      ensure: present
+{{- end }}
 {{- end }}

@@ -45,3 +45,9 @@ ingress:
   className: ""
   annotations: {}
   host: ""
+
+# Grafana Cloud Database Observability (EXPERIMENTAL, opt-in). When true, CNPG
+# clusters preload pg_stat_statements, create the extension, and expose a
+# least-privilege dbo11y role for Grafana Alloy to scrape query telemetry.
+dbObservability:
+  enabled: false
