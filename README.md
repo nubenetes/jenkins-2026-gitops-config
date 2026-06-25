@@ -203,9 +203,9 @@ The `env` value becomes the `deployment.environment` OTel resource attribute on 
 
 ## Postgres (CNPG)
 
-Each service that has `postgres: enabled: true` in `values.yaml` gets CNPG `Cluster` and `Pooler` CRs templated by `templates/postgres.yaml`. The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
+Each service in `.Values.services` gets CNPG `Cluster` and `Pooler` CRs templated by `templates/postgres.yaml` (the template ranges over **every** service unconditionally; per-service `postgres.storageSize` / `walStorageSize` are the only optional knobs). The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
 
-- A highly-available PostgreSQL database tier — **3 instances**, zonal anti-affinity, dynamic primary promotion (PostgreSQL version = the CNPG operator's default image; not pinned in the chart)
+- A highly-available **PostgreSQL 18.3** database tier — **3 instances**, zonal anti-affinity, dynamic primary promotion. The image is **pinned** explicitly (`spec.imageName`, default `ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie`, overridable via `global.postgresImage`) so the DB version is reproducible; bump it deliberately
 - Connection pooling managed via native PgBouncer pooler deployments
 - Automated Barman Object Store backups targeting Google Cloud Storage (GCS)
 - A secret `postgres-<service>-app` injected into the service pod via `SPRING_DATASOURCE_URL` or `SPRING_R2DBC_URL`
@@ -244,14 +244,14 @@ The GitOps repository uses the `main` branch to target `microservices-stable` de
 ### Why only the `main` branch?
 
 1. **Single Environment Target**: In this unified model the develop tier is disabled by default, leaving a single active target namespace (`microservices`); the develop track can be re-enabled (see below).
-2. **Simplified Promotion**: The Jenkins CI pipeline writes image tags directly inside [values-stable.yaml](file:///home/inafev/github/jenkins-2026-gitops-config/helm/microservices/values-stable.yaml) on the `main` branch of the GitOps repository.
+2. **Simplified Promotion**: The Jenkins CI pipeline writes image tags directly inside [values-stable.yaml](helm/microservices/values-stable.yaml) on the `main` branch of the GitOps repository.
 
 ### Would a `develop` branch make sense?
 
 Yes, but **only if you restore a multi-environment deployment model** (e.g., dev/staging vs. stable namespaces):
 
 * **Testing Infrastructure Changes**: If developers need to test Helm chart updates (e.g., resource limits, new environment variables, or sidecar additions) in a sandbox (`develop`) namespace before promoting them to stable (`main`), they would push changes to the `develop` branch of the GitOps repo first for verification.
-* **Tracking Parallel Code Tracks**: If upstream repositories build from both a `develop` branch (dev builds) and a `main` branch (stable releases), Jenkins would commit dev tags to a `values-develop.yaml` on the GitOps `develop` branch (synced to a dev namespace), and stable tags to [values-stable.yaml](file:///home/inafev/github/jenkins-2026-gitops-config/helm/microservices/values-stable.yaml) on the GitOps `main` branch (synced to the stable namespace).
+* **Tracking Parallel Code Tracks**: If upstream repositories build from both a `develop` branch (dev builds) and a `main` branch (stable releases), Jenkins would commit dev tags to a `values-develop.yaml` on the GitOps `develop` branch (synced to a dev namespace), and stable tags to [values-stable.yaml](helm/microservices/values-stable.yaml) on the GitOps `main` branch (synced to the stable namespace).
 
 ---
 

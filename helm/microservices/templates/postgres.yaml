@@ -9,6 +9,11 @@ metadata:
     app.kubernetes.io/name: postgres-{{ $name }}
     {{- include "microservices.labels" $ | nindent 4 }}
 spec:
+  # Pin the PostgreSQL image explicitly (instead of inheriting the CNPG operator's
+  # floating default) so the database major/minor is reproducible and upgrades are
+  # deliberate - matches the repo-wide "pin everything" policy. Override per-env via
+  # global.postgresImage. Bump deliberately; CNPG validates major-version jumps.
+  imageName: {{ $.Values.global.postgresImage | default "ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie" }}
   instances: 3
 
   # Zonal anti-affinity for high availability
