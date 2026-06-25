@@ -87,6 +87,20 @@ spec:
     ports:
     - protocol: TCP
       port: 8081
+  # CI smoke tests curl /management/health directly. They run in the active CI
+  # engine's namespace (Tekton: tekton-ci, Jenkins: jenkins) — allow both on 8081.
+  # A namespaceSelector for an absent namespace simply matches nothing, so listing
+  # the engine that isn't deployed is harmless.
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: tekton-ci
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: jenkins
+    ports:
+    - protocol: TCP
+      port: 8081
   egress:
   - to:
     - podSelector:
