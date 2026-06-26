@@ -4,8 +4,11 @@
 >
 > This repo is the **Git source of truth for ArgoCD**. Jenkins CI writes image tags here; ArgoCD reads them and reconciles the cluster state. You do not deploy anything manually from this repo.
 
-## Table of Contents
+> ## ⚠️ `main` is CI-writable — do NOT require pull requests on it
+>
+> The Jenkins **GitOps Update** pipeline stage pushes image-tag bumps **directly** to `main` (`git push origin main`). `main` is therefore protected only against **force-pushes/deletions**, **not** with *require-a-pull-request*. If you enable "Require a pull request before merging" on `main`, the CI's PAT-authenticated push is rejected (an admin PAT does **not** bypass branch protection), so **every deploy fails** at GitOps Update and the image tags freeze. This is deliberate and the **opposite** of the [`jenkins-2026`](https://github.com/nubenetes/jenkins-2026) infra repo, whose `main` is strict-GitFlow-protected (PR-from-`develop`-only) because it is human-reviewed. Here, image-tag bumps are machine-managed, not human-reviewed — so `main` must accept the CI's direct push.
 
+## Table of Contents
 - [Golden Path IDP Infrastructure](#golden-path-idp-infrastructure)
 - [Relationship to `jenkins-2026`](#relationship-to-jenkins-2026)
 - [Repository Layout](#repository-layout)
