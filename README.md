@@ -64,7 +64,7 @@ In alignment with 2026 Cloud-Native best practices, all platform infrastructure 
 |  argocd/            --- Application / AppSet manifests (deployed   |
 |                         FROM infra repo, stored here for clarity)  |
 |  helm/microservices/--- Helm chart + env values files              |
-|    values-stable.yaml<- Jenkins writes image tags here             |
+|    values-stable.yaml<- active CI engine writes tags             |
 +--------------------------------------------------------------------+
 ```
 
@@ -72,8 +72,8 @@ In alignment with 2026 Cloud-Native best practices, all platform infrastructure 
 |--------|------------|-------|
 | Bootstrap cluster & install ArgoCD | `scripts/08.5-argocd.sh` | `jenkins-2026` |
 | Register this repo in ArgoCD | `scripts/08.5-argocd.sh` | `jenkins-2026` |
-| Build & push container images | Jenkins pipeline (`MicroservicesPipeline`) | `jenkins-2026/vars/` |
-| **Write image tag to values file** | Jenkins (`vars/microservicesDeploy.groovy`) | **this repo** |
+| Build & push container images | Active CI engine — Jenkins (`MicroservicesPipeline`) **or** Tekton (`ci.engine=tekton`) | `jenkins-2026/vars/` or `jenkins-2026/tekton/` |
+| **Write image tag to values file** | Active CI engine — Jenkins (`vars/microservicesDeploy.groovy`) **or** Tekton (`gitops-update` task) | **this repo** |
 | Detect tag change & deploy to cluster | ArgoCD (automated sync) | cluster |
 | Grafana dashboard push | `scripts/07-grafana-dashboards.sh` | `jenkins-2026` |
 
@@ -114,12 +114,12 @@ jenkins-2026-gitops-config/
 
 ## How Image Tags Are Updated
 
-Jenkins runs the `microservicesDeploy.groovy` shared-library step on every successful build:
+The **active CI engine** — Jenkins by default, or **Tekton** when `ci.engine=tekton` in the infra repo — updates the image tag here on every successful build. With Jenkins it is the `microservicesDeploy.groovy` shared-library step; with Tekton it is the equivalent `gitops-update` task. Both clone this repo, bump the tag in the values file, and push to `main`:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Jenkins as Jenkins CI Pipeline
+    actor Jenkins as Active CI Pipeline (Jenkins or Tekton)
     participant GitOps as jenkins-2026-gitops-config (Git)
     participant ArgoCD as ArgoCD Server
     participant Cluster as Kubernetes Cluster
@@ -133,7 +133,7 @@ sequenceDiagram
     ArgoCD-->>Jenkins: Sync finished & Healthy
 ```
 
-The updated `values-stable.yaml` is the **only file Jenkins ever modifies** in this repo. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo.
+The updated `values-stable.yaml` (or `values-develop.yaml`) is the **only file the CI engine ever modifies** in this repo — identically whether the engine is Jenkins or Tekton. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo. (Tekton itself is GitOps-managed by ArgoCD from the **infra** repo's `tekton/` + `argocd/tekton/`, not from here — this repo holds only the deployment target, which is CI-engine-agnostic. See [`docs/403-TEKTON.md`](https://github.com/nubenetes/jenkins-2026/blob/main/docs/403-TEKTON.md).)
 
 ---
 
@@ -242,7 +242,7 @@ microservice under enforcement (see [`jenkins-2026` docs/501](https://github.com
 
 ## Branch Strategy
 
-The GitOps repository uses the `main` branch to target `microservices-stable` deployments. Jenkins updates `helm/microservices/values-stable.yaml` on `main` to promote new image versions. The `develop` tier is **disabled by default** (only `microservices-stable` is generated); its `values-develop.yaml` stays dormant in the chart and is activated only when `microservices.developTrackEnabled` is set in the infra repo.
+The GitOps repository uses the `main` branch to target `microservices-stable` deployments. The active CI engine (Jenkins or Tekton) updates `helm/microservices/values-stable.yaml` on `main` to promote new image versions. The `develop` tier is **disabled by default** (only `microservices-stable` is generated); its `values-develop.yaml` stays dormant in the chart and is activated only when `microservices.developTrackEnabled` is set in the infra repo.
 
 ### Why only the `main` branch?
 
@@ -257,6 +257,23 @@ Yes, but **only if you restore a multi-environment deployment model** (e.g., dev
 * **Tracking Parallel Code Tracks**: If upstream repositories build from both a `develop` branch (dev builds) and a `main` branch (stable releases), Jenkins would commit dev tags to a `values-develop.yaml` on the GitOps `develop` branch (synced to a dev namespace), and stable tags to [values-stable.yaml](helm/microservices/values-stable.yaml) on the GitOps `main` branch (synced to the stable namespace).
 
 ---
+
+### `main` branch protection — CI-writable (do NOT require pull requests)
+
+`main` is **direct-push** so the CI''s *GitOps Update* step can push image-tag bumps unattended. Actual `main` protection (GitHub -> Settings -> Branches):
+
+| Setting | Value | Why |
+|---|---|---|
+| Require a pull request before merging | **off** | The CI pushes tags straight to `main` (`git push origin main`). Require-PR rejects the PAT push (an admin PAT does **not** bypass protection) and **wedges every deploy**. |
+| Required status checks | **none** | Image-tag bumps are machine-generated — nothing to gate them on. |
+| Include administrators | **off** | — |
+| Allow force pushes | **off** | History on `main` is protected. |
+| Allow deletions | **off** | `main` cannot be deleted. |
+
+- **Allowed -> `main`:** direct push (the CI''s PAT, or a human pushing a chart/values edit).
+- **Forbidden -> `main`:** force-push, branch deletion.
+
+> WARNING: This is the **opposite** of the infra repo [`nubenetes/jenkins-2026`](https://github.com/nubenetes/jenkins-2026), whose `main` is **strict GitFlow** (require-PR from `develop` only, `gitflow-guard` required check, `enforce_admins=on`). The asymmetry is deliberate: the infra repo is human-reviewed, this repo is machine-managed. Full allowed/forbidden matrix: infra repo [`docs/101` -> Branch protection & GitFlow promotion](https://github.com/nubenetes/jenkins-2026/blob/main/docs/101-GITHUB_ACTIONS_WORKFLOWS.md).
 
 ## OTel Auto-Instrumentation
 
