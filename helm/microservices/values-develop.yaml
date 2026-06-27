@@ -30,8 +30,8 @@ services:
     port: 8080
     healthPath: /management/health
     resources:
-      requests: {cpu: 100m, memory: 256Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 100m, memory: 384Mi}
+      limits: {cpu: 500m, memory: 768Mi}
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: prod,api-docs
@@ -55,8 +55,8 @@ services:
     port: 8081
     healthPath: /management/health
     resources:
-      requests: {cpu: 100m, memory: 256Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 100m, memory: 384Mi}
+      limits: {cpu: 500m, memory: 768Mi}
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: prod,api-docs
