@@ -101,6 +101,15 @@ spec:
                   name: postgres-{{ $name }}-app
                   key: password
           {{- if eq $svc.type "java" }}
+          # Slow cold start: Spring Boot + liquibase, further slowed by the OTel Java
+          # agent. A startupProbe holds off liveness/readiness for up to ~5min so the
+          # pod is not killed mid-boot (the lean develop tier hit this as CrashLoop).
+          startupProbe:
+            httpGet:
+              path: {{ $svc.healthPath }}
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
           volumeMounts:
             - name: logback-config
               mountPath: /etc/logback
