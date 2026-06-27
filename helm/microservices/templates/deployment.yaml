@@ -102,14 +102,16 @@ spec:
                   key: password
           {{- if eq $svc.type "java" }}
           # Slow cold start: Spring Boot + liquibase, further slowed by the OTel Java
-          # agent. A startupProbe holds off liveness/readiness for up to ~5min so the
+          # agent. A startupProbe holds off liveness/readiness for up to ~10min so the
           # pod is not killed mid-boot (the lean develop tier hit this as CrashLoop).
+          # 30x10s=5min was still too tight under CPU contention (a rolling update runs
+          # the old + new pod side by side); 60x10s=10min absorbs a throttled boot.
           startupProbe:
             httpGet:
               path: {{ $svc.healthPath }}
               port: http
             periodSeconds: 10
-            failureThreshold: 30
+            failureThreshold: 60
           volumeMounts:
             - name: logback-config
               mountPath: /etc/logback

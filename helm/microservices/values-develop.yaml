@@ -31,7 +31,11 @@ services:
     healthPath: /management/health
     resources:
       requests: {cpu: 100m, memory: 384Mi}
-      limits: {cpu: 500m, memory: 768Mi}
+      # CPU limit is a burst ceiling, not a reservation (request stays lean at 100m).
+      # 500m throttled the JHipster + OTel-agent cold start so hard it never bound its
+      # port inside the startup probe window -> CrashLoop. 1500m lets the boot burst on
+      # the (mostly idle) node, then it idles back to ~10m. Memory stays 768Mi.
+      limits: {cpu: 1500m, memory: 768Mi}
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: prod,api-docs
@@ -56,7 +60,8 @@ services:
     healthPath: /management/health
     resources:
       requests: {cpu: 100m, memory: 384Mi}
-      limits: {cpu: 500m, memory: 768Mi}
+      # See gateway above: 500m starved the cold start; 1500m is a burst ceiling only.
+      limits: {cpu: 1500m, memory: 768Mi}
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: prod,api-docs
