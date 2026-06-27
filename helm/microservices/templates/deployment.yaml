@@ -10,6 +10,17 @@ metadata:
     {{- include "microservices.labels" $ | nindent 4 }}
 spec:
   replicas: 1
+  {{- if $.Values.deploymentStrategy }}
+  # Recreate on the lean develop tier: PgBouncer runs session-mode pooling with
+  # default_pool_size=20, and one Java instance (Hikari + R2DBC) holds ~20 server
+  # connections for its whole life. A RollingUpdate runs the old + new pod at once,
+  # so the new pod can get 0 connections -> its reactive r2dbc health indicator
+  # hangs forever -> startup probe never passes -> CrashLoop. Recreate terminates
+  # the old pod first, freeing its connections for the new one. Brief downtime is
+  # fine for develop; stable keeps the default RollingUpdate (no value set there).
+  strategy:
+    type: {{ $.Values.deploymentStrategy }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ $name }}

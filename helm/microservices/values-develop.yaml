@@ -12,6 +12,12 @@ global:
   postgresBackupEnabled: false
 namespace: microservices-develop
 env: develop
+# Recreate (not RollingUpdate): the lean tier's single PgBouncer pooler runs
+# session-mode pooling (default_pool_size 20) and one Java app holds ~20 server
+# connections; overlapping old+new pods during a rolling update starve the new
+# pod of DB connections, hanging its r2dbc health check -> CrashLoop. See
+# templates/deployment.yaml. Stable omits this and keeps RollingUpdate.
+deploymentStrategy: Recreate
 registry: ghcr.io/nubenetes/jenkins-2026-microservices
 imagePullSecret: ghcr-credentials
 otel:
