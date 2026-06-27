@@ -14,7 +14,9 @@ spec:
   # deliberate - matches the repo-wide "pin everything" policy. Override per-env via
   # global.postgresImage. Bump deliberately; CNPG validates major-version jumps.
   imageName: {{ $.Values.global.postgresImage | default "ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie" }}
-  instances: 3
+  # HA replica count. Default 3 (primary + 2 standbys) for stable; the lean 'develop'
+  # tier overrides global.postgresInstances: 1 (single instance, no standbys).
+  instances: {{ $.Values.global.postgresInstances | default 3 }}
 
   # Zonal anti-affinity for high availability
   affinity:
@@ -71,7 +73,10 @@ spec:
       annotations:
         iam.gke.io/gcp-service-account: {{ $.Values.global.gcpServiceAccount | default "jenkins-2026-sa" }}@{{ $.Values.global.gcpProject | default "jenkins-2026" }}.iam.gserviceaccount.com
 
-  # Native Barman backup configuration
+  {{- if ne $.Values.global.postgresBackupEnabled false }}
+  # Native Barman backup configuration — WAL + base backups to GCS. Enabled by
+  # default (stable); the lean 'develop' tier sets global.postgresBackupEnabled:
+  # false (disposable data, no HA), which also drops the ScheduledBackup below.
   backup:
     barmanObjectStore:
       destinationPath: gs://{{ $.Values.global.gcsBackupBucket | default "jenkins-2026-postgres-backups" }}/{{ $name }}
@@ -79,7 +84,9 @@ spec:
         gkeEnvironment: true
       wal:
         compression: gzip
+  {{- end }}
 
+{{- if ne $.Values.global.postgresBackupEnabled false }}
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
@@ -92,6 +99,7 @@ spec:
     name: postgres-{{ $name }}
   backupOwnerReference: self
   immediate: false
+{{- end }}
 
 ---
 apiVersion: postgresql.cnpg.io/v1
@@ -105,7 +113,9 @@ metadata:
 spec:
   cluster:
     name: postgres-{{ $name }}
-  instances: 3
+  # PgBouncer pooler replicas. Default 3 for stable; develop overrides
+  # global.poolerInstances: 1 (the JDBC URL still points at the pooler Service).
+  instances: {{ $.Values.global.poolerInstances | default 3 }}
   type: rw
   pgbouncer:
     poolMode: session
