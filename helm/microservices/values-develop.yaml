@@ -4,6 +4,12 @@
 
 global:
   platform: gke
+  # Lean tier — develop needs only what it needs, not HA. Single Postgres instance
+  # (no standbys), single PgBouncer pooler, and no Barman/ScheduledBackup (develop
+  # data is disposable). Stable keeps the defaults (3 / 3 / backups-on).
+  postgresInstances: 1
+  poolerInstances: 1
+  postgresBackupEnabled: false
 namespace: microservices-develop
 env: develop
 registry: ghcr.io/nubenetes/jenkins-2026-microservices
