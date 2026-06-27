@@ -112,14 +112,21 @@ spec:
                   name: postgres-{{ $name }}-app
                   key: password
           {{- if eq $svc.type "java" }}
-          # Slow cold start: Spring Boot + liquibase, further slowed by the OTel Java
-          # agent. A startupProbe holds off liveness/readiness for up to ~10min so the
-          # pod is not killed mid-boot (the lean develop tier hit this as CrashLoop).
-          # 30x10s=5min was still too tight under CPU contention (a rolling update runs
-          # the old + new pod side by side); 60x10s=10min absorbs a throttled boot.
+          # Probes use Spring Boot's DEDICATED health groups, not the aggregate
+          # {{ $svc.healthPath }}: liveness = "is the JVM alive / not deadlocked"
+          # (a transient DB/dependency blip must NOT restart the pod), readiness =
+          # "can it serve traffic right now" (gets pulled from the Service instead).
+          # Using the aggregate for liveness is an anti-pattern — a DB outage would
+          # restart-loop every pod. Both groups verified present (200) on these
+          # JHipster images (Spring AvailabilityProbes auto-enabled on Kubernetes).
+          #
+          # Slow cold start (Spring Boot + liquibase + the OTel Java agent): the
+          # startupProbe holds off liveness/readiness for up to ~10min so the pod is
+          # not killed mid-boot (the lean develop tier hit this as CrashLoop). 5min
+          # was still too tight under CPU contention; 60x10s=10min absorbs it.
           startupProbe:
             httpGet:
-              path: {{ $svc.healthPath }}
+              path: {{ $svc.healthPath }}/readiness
               port: http
             periodSeconds: 10
             failureThreshold: 60
@@ -138,14 +145,14 @@ spec:
           {{- if eq $svc.type "java" }}
           readinessProbe:
             httpGet:
-              path: {{ $svc.healthPath }}
+              path: {{ $svc.healthPath }}/readiness
               port: http
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: {{ $svc.healthPath }}
+              path: {{ $svc.healthPath }}/liveness
               port: http
             initialDelaySeconds: 60
             periodSeconds: 20
