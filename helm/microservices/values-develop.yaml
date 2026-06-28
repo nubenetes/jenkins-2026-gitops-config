@@ -32,7 +32,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: develop-7
+      tag: develop-8
     port: 8080
     healthPath: /management/health
     resources:
