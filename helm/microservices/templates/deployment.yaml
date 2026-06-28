@@ -80,6 +80,31 @@ spec:
             # logs->traces correlation has nothing to link.
             - name: SPRING_REACTOR_CONTEXT_PROPAGATION
               value: "auto"
+            # JVM tuning (HotSpot, JDK 25 LTS / Temurin). Set via JDK_JAVA_OPTIONS,
+            # NOT JAVA_TOOL_OPTIONS — the OTel operator owns JAVA_TOOL_OPTIONS for the
+            # -javaagent; both env vars are honoured by the launcher, so they compose.
+            #   -XX:+UseG1GC            container memory limits (<1792MB) make the JVM
+            #                           default to SerialGC (single-threaded, long
+            #                           stop-the-world full GCs) — wrong for a server
+            #                           app. Force G1 (concurrent, pause-targeted).
+            #   -XX:MaxRAMPercentage=50 the default is only 25% (≈192Mi heap of 768Mi)
+            #                           → constant GC. 50% doubles the heap while
+            #                           leaving room for the OTel agent's native memory
+            #                           + Metaspace + threads (conservative on purpose;
+            #                           stable could go higher). See docs/303.
+            #   -XX:+UseStringDeduplication  G1-only; trims duplicate Strings (Spring/
+            #                                JHipster are String-heavy) → less heap.
+            #   -XX:+ExitOnOutOfMemoryError  on OOM, exit so Kubernetes restarts the
+            #                                pod cleanly instead of a wedged JVM.
+            # ZGC was considered but rejected: its concurrent collector wants more
+            # CPU/native headroom than these lean, CPU-capped pods — G1 fits better
+            # at this heap size. See docs/303-JVM-TUNING.md.
+            - name: JDK_JAVA_OPTIONS
+              value: >-
+                -XX:+UseG1GC
+                -XX:MaxRAMPercentage=50.0
+                -XX:+UseStringDeduplication
+                -XX:+ExitOnOutOfMemoryError
             {{- end }}
             {{- range $svc.env }}
             - name: {{ .name }}
