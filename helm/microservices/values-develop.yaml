@@ -4,8 +4,20 @@
 
 global:
   platform: gke
+  # Lean tier — develop needs only what it needs, not HA. Single Postgres instance
+  # (no standbys), single PgBouncer pooler, and no Barman/ScheduledBackup (develop
+  # data is disposable). Stable keeps the defaults (3 / 3 / backups-on).
+  postgresInstances: 1
+  poolerInstances: 1
+  postgresBackupEnabled: false
 namespace: microservices-develop
 env: develop
+# Recreate (not RollingUpdate): the lean tier's single PgBouncer pooler runs
+# session-mode pooling (default_pool_size 20) and one Java app holds ~20 server
+# connections; overlapping old+new pods during a rolling update starve the new
+# pod of DB connections, hanging its r2dbc health check -> CrashLoop. See
+# templates/deployment.yaml. Stable omits this and keeps RollingUpdate.
+deploymentStrategy: Recreate
 registry: ghcr.io/nubenetes/jenkins-2026-microservices
 imagePullSecret: ghcr-credentials
 otel:
@@ -24,8 +36,12 @@ services:
     port: 8080
     healthPath: /management/health
     resources:
-      requests: {cpu: 100m, memory: 256Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 100m, memory: 384Mi}
+      # CPU limit is a burst ceiling, not a reservation (request stays lean at 100m).
+      # 500m throttled the JHipster + OTel-agent cold start so hard it never bound its
+      # port inside the startup probe window -> CrashLoop. 1500m lets the boot burst on
+      # the (mostly idle) node, then it idles back to ~10m. Memory stays 768Mi.
+      limits: {cpu: 1500m, memory: 768Mi}
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: prod,api-docs
@@ -49,8 +65,9 @@ services:
     port: 8081
     healthPath: /management/health
     resources:
-      requests: {cpu: 100m, memory: 256Mi}
-      limits: {cpu: 500m, memory: 512Mi}
+      requests: {cpu: 100m, memory: 384Mi}
+      # See gateway above: 500m starved the cold start; 1500m is a burst ceiling only.
+      limits: {cpu: 1500m, memory: 768Mi}
     env:
       - name: SPRING_PROFILES_ACTIVE
         value: prod,api-docs

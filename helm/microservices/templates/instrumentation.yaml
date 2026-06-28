@@ -41,6 +41,13 @@ spec:
         value: "true"
       - name: OTEL_INSTRUMENTATION_LOG4J_APPENDER_ENABLED
         value: "true"
+      # Emit the agent's EXPERIMENTAL JVM runtime metrics on top of the stable set,
+      # so the JVM-internals dashboard can show buffer pools (direct/mapped),
+      # allocation rate and system CPU — the deeper signals (à la Grafana dashboard
+      # 18812 "JVM Overview / OpenTelemetry"). Low extra cardinality (~tens of series
+      # per pod); well within the free-tier budget.
+      - name: OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_EMIT_EXPERIMENTAL_TELEMETRY
+        value: "true"
       - name: OTEL_RESOURCE_ATTRIBUTES
         value: "deployment.environment={{ .Values.env }},service.namespace=jenkins-2026"
 {{- end }}

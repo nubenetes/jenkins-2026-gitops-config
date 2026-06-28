@@ -10,6 +10,17 @@ metadata:
     {{- include "microservices.labels" $ | nindent 4 }}
 spec:
   replicas: 1
+  {{- if $.Values.deploymentStrategy }}
+  # Recreate on the lean develop tier: PgBouncer runs session-mode pooling with
+  # default_pool_size=20, and one Java instance (Hikari + R2DBC) holds ~20 server
+  # connections for its whole life. A RollingUpdate runs the old + new pod at once,
+  # so the new pod can get 0 connections -> its reactive r2dbc health indicator
+  # hangs forever -> startup probe never passes -> CrashLoop. Recreate terminates
+  # the old pod first, freeing its connections for the new one. Brief downtime is
+  # fine for develop; stable keeps the default RollingUpdate (no value set there).
+  strategy:
+    type: {{ $.Values.deploymentStrategy }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ $name }}
@@ -69,6 +80,31 @@ spec:
             # logs->traces correlation has nothing to link.
             - name: SPRING_REACTOR_CONTEXT_PROPAGATION
               value: "auto"
+            # JVM tuning (HotSpot, JDK 25 LTS / Temurin). Set via JDK_JAVA_OPTIONS,
+            # NOT JAVA_TOOL_OPTIONS — the OTel operator owns JAVA_TOOL_OPTIONS for the
+            # -javaagent; both env vars are honoured by the launcher, so they compose.
+            #   -XX:+UseG1GC            container memory limits (<1792MB) make the JVM
+            #                           default to SerialGC (single-threaded, long
+            #                           stop-the-world full GCs) — wrong for a server
+            #                           app. Force G1 (concurrent, pause-targeted).
+            #   -XX:MaxRAMPercentage=50 the default is only 25% (≈192Mi heap of 768Mi)
+            #                           → constant GC. 50% doubles the heap while
+            #                           leaving room for the OTel agent's native memory
+            #                           + Metaspace + threads (conservative on purpose;
+            #                           stable could go higher). See docs/303.
+            #   -XX:+UseStringDeduplication  G1-only; trims duplicate Strings (Spring/
+            #                                JHipster are String-heavy) → less heap.
+            #   -XX:+ExitOnOutOfMemoryError  on OOM, exit so Kubernetes restarts the
+            #                                pod cleanly instead of a wedged JVM.
+            # ZGC was considered but rejected: its concurrent collector wants more
+            # CPU/native headroom than these lean, CPU-capped pods — G1 fits better
+            # at this heap size. See docs/303-JVM-TUNING.md.
+            - name: JDK_JAVA_OPTIONS
+              value: >-
+                -XX:+UseG1GC
+                -XX:MaxRAMPercentage=50.0
+                -XX:+UseStringDeduplication
+                -XX:+ExitOnOutOfMemoryError
             {{- end }}
             {{- range $svc.env }}
             - name: {{ .name }}
@@ -101,6 +137,24 @@ spec:
                   name: postgres-{{ $name }}-app
                   key: password
           {{- if eq $svc.type "java" }}
+          # Probes use Spring Boot's DEDICATED health groups, not the aggregate
+          # {{ $svc.healthPath }}: liveness = "is the JVM alive / not deadlocked"
+          # (a transient DB/dependency blip must NOT restart the pod), readiness =
+          # "can it serve traffic right now" (gets pulled from the Service instead).
+          # Using the aggregate for liveness is an anti-pattern — a DB outage would
+          # restart-loop every pod. Both groups verified present (200) on these
+          # JHipster images (Spring AvailabilityProbes auto-enabled on Kubernetes).
+          #
+          # Slow cold start (Spring Boot + liquibase + the OTel Java agent): the
+          # startupProbe holds off liveness/readiness for up to ~10min so the pod is
+          # not killed mid-boot (the lean develop tier hit this as CrashLoop). 5min
+          # was still too tight under CPU contention; 60x10s=10min absorbs it.
+          startupProbe:
+            httpGet:
+              path: {{ $svc.healthPath }}/readiness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 60
           volumeMounts:
             - name: logback-config
               mountPath: /etc/logback
@@ -116,14 +170,14 @@ spec:
           {{- if eq $svc.type "java" }}
           readinessProbe:
             httpGet:
-              path: {{ $svc.healthPath }}
+              path: {{ $svc.healthPath }}/readiness
               port: http
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: {{ $svc.healthPath }}
+              path: {{ $svc.healthPath }}/liveness
               port: http
             initialDelaySeconds: 60
             periodSeconds: 20
