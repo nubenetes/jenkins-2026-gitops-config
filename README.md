@@ -37,7 +37,7 @@ This repository defines the GitOps state for the modernized **Internal Developer
 
 ### Decoupled Core Components
 In alignment with 2026 Cloud-Native best practices, all platform infrastructure manifests are decoupled from CI build execution and managed via GitOps:
-* **Elastic Karpenter Autoscaling**: Configured with dynamic `NodePool` and `GCPNodeClass` manifests under `infrastructure/karpenter/` in the main repo to handle autoscaling of ephemeral build agents on Spot instances.
+* **Elastic Node Auto-Provisioning (NAP)**: GKE-native (GA) node auto-provisioning driven by a Custom `ComputeClass` under `infrastructure/compute-classes/` in the main repo, auto-creating **Spot, scale-to-zero** node pools for ephemeral build agents (the Google-supported equivalent of Karpenter — there is no production-ready Karpenter provider for GCP).
 * **GKE Gateway API Routing**: Secure HTTPS traffic routing for Jenkins and Headlamp is mapped under `infrastructure/gateway/` using native `Gateway`, `HTTPRoute`, and `BackendTLSPolicy` (zero-trust TLS to pods).
 * **Workload-Aware scheduling & Security**: Maps K8s v1.36 `PodGroup` (Gang scheduling) and `ConstrainedImpersonation` policies for Headlamp UI users.
 
