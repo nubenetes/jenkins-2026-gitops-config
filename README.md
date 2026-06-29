@@ -37,7 +37,7 @@ This repository defines the GitOps state for the modernized **Internal Developer
 
 ### Decoupled Core Components
 In alignment with 2026 Cloud-Native best practices, all platform infrastructure manifests are decoupled from CI build execution and managed via GitOps:
-* **Elastic Karpenter Autoscaling**: Configured with dynamic `NodePool` and `GCPNodeClass` manifests under `infrastructure/karpenter/` in the main repo to handle autoscaling of ephemeral build agents on Spot instances.
+* **Elastic Node Auto-Provisioning (NAP)**: GKE-native (GA) node auto-provisioning driven by a Custom `ComputeClass` under `infrastructure/compute-classes/` in the main repo, auto-creating **Spot, scale-to-zero** node pools for ephemeral build agents (the Google-supported equivalent of Karpenter — there is no production-ready Karpenter provider for GCP).
 * **GKE Gateway API Routing**: Secure HTTPS traffic routing for Jenkins and Headlamp is mapped under `infrastructure/gateway/` using native `Gateway`, `HTTPRoute`, and `BackendTLSPolicy` (zero-trust TLS to pods).
 * **Workload-Aware scheduling & Security**: Maps K8s v1.36 `PodGroup` (Gang scheduling) and `ConstrainedImpersonation` policies for Headlamp UI users.
 
@@ -133,7 +133,7 @@ sequenceDiagram
     ArgoCD-->>Jenkins: Sync finished & Healthy
 ```
 
-The updated `values-stable.yaml` (or `values-develop.yaml`) is the **only file the CI engine ever modifies** in this repo — identically whether the engine is Jenkins or Tekton. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo. (Tekton itself is GitOps-managed by ArgoCD from the **infra** repo's `tekton/` + `argocd/tekton/`, not from here — this repo holds only the deployment target, which is CI-engine-agnostic. See [`docs/403-TEKTON.md`](https://github.com/nubenetes/jenkins-2026/blob/main/docs/403-TEKTON.md).)
+The updated [`values-stable.yaml`](helm/microservices/values-stable.yaml) (or [`values-develop.yaml`](helm/microservices/values-develop.yaml)) is the **only file the CI engine ever modifies** in this repo — identically whether the engine is Jenkins or Tekton. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo. (Tekton itself is GitOps-managed by ArgoCD from the **infra** repo's `tekton/` + `argocd/tekton/`, not from here — this repo holds only the deployment target, which is CI-engine-agnostic. See [`docs/403-TEKTON.md`](https://github.com/nubenetes/jenkins-2026/blob/main/docs/403-TEKTON.md).)
 
 ---
 
@@ -146,9 +146,9 @@ Generates the stable application:
 
 | Generated App | Namespace | Values file | Branch |
 |---------------|-----------|-------------|--------|
-| `microservices-stable` | `microservices` | `values-stable.yaml` | `main` |
+| `microservices-stable` | `microservices` | [`values-stable.yaml`](helm/microservices/values-stable.yaml) | `main` |
 
-It uses `prune: true` + `selfHeal: true`. Only the **stable** application is generated; the develop tier is **disabled by default** (the AppSet emits a `develop` element only when `microservices.developTrackEnabled` is set in the infra repo). The dormant `values-develop.yaml` stays in the chart for when that track is re-enabled — see [Branch Strategy](#branch-strategy).
+It uses `prune: true` + `selfHeal: true`. Only the **stable** application is generated; the develop tier is **disabled by default** (the AppSet emits a `develop` element only when `microservices.developTrackEnabled` is set in the infra repo). The dormant [`values-develop.yaml`](helm/microservices/values-develop.yaml) stays in the chart for when that track is re-enabled — see [Branch Strategy](#branch-strategy).
 
 ### Standalone Applications
 
@@ -198,7 +198,7 @@ services:
 
 | File | `env` | `namespace` | ArgoCD App |
 |------|-------|-------------|-----------|
-| `values-stable.yaml` | `stable` | `microservices` | `microservices-stable` |
+| [`values-stable.yaml`](helm/microservices/values-stable.yaml) | `stable` | `microservices` | `microservices-stable` |
 
 The `env` value becomes the `deployment.environment` OTel resource attribute on every trace/metric/log emitted by deployed services, enabling environment filtering in Grafana dashboards.
 
@@ -206,7 +206,7 @@ The `env` value becomes the `deployment.environment` OTel resource attribute on 
 
 ## Postgres (CNPG)
 
-Each service in `.Values.services` gets CNPG `Cluster` and `Pooler` CRs templated by `templates/postgres.yaml` (the template ranges over **every** service unconditionally; per-service `postgres.storageSize` / `walStorageSize` are the only optional knobs). The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
+Each service in `.Values.services` gets CNPG `Cluster` and `Pooler` CRs templated by [`templates/postgres.yaml`](helm/microservices/templates/postgres.yaml) (the template ranges over **every** service unconditionally; per-service `postgres.storageSize` / `walStorageSize` are the only optional knobs). The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
 
 - A highly-available **PostgreSQL 18.3** database tier — **3 instances**, zonal anti-affinity, dynamic primary promotion. The image is **pinned** explicitly (`spec.imageName`, default `ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie`, overridable via `global.postgresImage`) so the DB version is reproducible; bump it deliberately
 - Connection pooling managed via native PgBouncer pooler deployments
@@ -224,7 +224,7 @@ Two clusters are provisioned in total — one per service in the stable environm
 
 ## NetworkPolicies (zero-trust)
 
-`templates/networkpolicies.yaml` ships a default-deny posture for the `microservices`
+[`templates/networkpolicies.yaml`](helm/microservices/templates/networkpolicies.yaml) ships a default-deny posture for the `microservices`
 namespace (enforced by GKE **Dataplane V2 / Cilium-eBPF** in the infra repo). Four
 policies:
 
@@ -242,7 +242,7 @@ microservice under enforcement (see [`jenkins-2026` docs/501](https://github.com
 
 ## Branch Strategy
 
-The GitOps repository uses the `main` branch to target `microservices-stable` deployments. The active CI engine (Jenkins or Tekton) updates `helm/microservices/values-stable.yaml` on `main` to promote new image versions. The `develop` tier is **disabled by default** (only `microservices-stable` is generated); its `values-develop.yaml` stays dormant in the chart and is activated only when `microservices.developTrackEnabled` is set in the infra repo.
+The GitOps repository uses the `main` branch to target `microservices-stable` deployments. The active CI engine (Jenkins or Tekton) updates [`helm/microservices/values-stable.yaml`](helm/microservices/values-stable.yaml) on `main` to promote new image versions. The `develop` tier is **disabled by default** (only `microservices-stable` is generated); its [`values-develop.yaml`](helm/microservices/values-develop.yaml) stays dormant in the chart and is activated only when `microservices.developTrackEnabled` is set in the infra repo.
 
 ### Why only the `main` branch?
 
@@ -254,7 +254,7 @@ The GitOps repository uses the `main` branch to target `microservices-stable` de
 Yes, but **only if you restore a multi-environment deployment model** (e.g., dev/staging vs. stable namespaces):
 
 * **Testing Infrastructure Changes**: If developers need to test Helm chart updates (e.g., resource limits, new environment variables, or sidecar additions) in a sandbox (`develop`) namespace before promoting them to stable (`main`), they would push changes to the `develop` branch of the GitOps repo first for verification.
-* **Tracking Parallel Code Tracks**: If upstream repositories build from both a `develop` branch (dev builds) and a `main` branch (stable releases), Jenkins would commit dev tags to a `values-develop.yaml` on the GitOps `develop` branch (synced to a dev namespace), and stable tags to [values-stable.yaml](helm/microservices/values-stable.yaml) on the GitOps `main` branch (synced to the stable namespace).
+* **Tracking Parallel Code Tracks**: If upstream repositories build from both a `develop` branch (dev builds) and a `main` branch (stable releases), Jenkins would commit dev tags to a [`values-develop.yaml`](helm/microservices/values-develop.yaml) on the GitOps `develop` branch (synced to a dev namespace), and stable tags to [values-stable.yaml](helm/microservices/values-stable.yaml) on the GitOps `main` branch (synced to the stable namespace).
 
 ---
 
@@ -277,7 +277,7 @@ Yes, but **only if you restore a multi-environment deployment model** (e.g., dev
 
 ## OTel Auto-Instrumentation
 
-The `templates/instrumentation.yaml` template creates an `Instrumentation` CR (managed by the OTel Operator, installed by `scripts/03-observability.sh`). This automatically attaches the OTel Java agent to every Spring Boot service pod via a mutating webhook — no changes to application code or Docker images are required.
+The [`templates/instrumentation.yaml`](helm/microservices/templates/instrumentation.yaml) template creates an `Instrumentation` CR (managed by the OTel Operator, installed by `scripts/03-observability.sh`). This automatically attaches the OTel Java agent to every Spring Boot service pod via a mutating webhook — no changes to application code or Docker images are required.
 
 The agent is configured with:
 - `OTEL_EXPORTER_OTLP_ENDPOINT` → the in-cluster OTel Collector gateway
@@ -292,8 +292,8 @@ The agent is configured with:
 |-----------|------|
 | [`nubenetes/jenkins-2026`](https://github.com/nubenetes/jenkins-2026) | **Infra repo** — cluster bootstrap, Jenkins, ArgoCD, Observability, shared pipeline library |
 | [`nubenetes/jenkins-2026-gitops-config`](https://github.com/nubenetes/jenkins-2026-gitops-config) | **This repo** — GitOps state: Helm chart, env values, ArgoCD manifests |
-| [`spring-microservices/spring-microservices-microservices`](https://github.com/spring-microservices/spring-microservices-microservices) | Upstream Spring Boot microservices source code |
-| [`spring-microservices/spring-microservices-angular`](https://github.com/spring-microservices/spring-microservices-angular) | Upstream Angular gateway UI source code |
+| [`nubenetes/jhipster-sample-app-gateway`](https://github.com/nubenetes/jhipster-sample-app-gateway) | **App source** — the JHipster **gateway** (Java / Spring Boot; it *serves* the Angular SPA, it is not itself an Angular app), built as the `gateway` service. Fork of upstream [`jhipster/jhipster-sample-app-gateway`](https://github.com/jhipster/jhipster-sample-app-gateway) (the fork carries a real `develop` branch for branch-based promotion). |
+| [`nubenetes/jhipster-sample-app-microservice`](https://github.com/nubenetes/jhipster-sample-app-microservice) | **App source** — the JHipster backend **microservice**, built as `jhipstersamplemicroservice`. Fork of upstream [`jhipster/jhipster-sample-app-microservice`](https://github.com/jhipster/jhipster-sample-app-microservice). |
 
 ---
 
@@ -330,6 +330,6 @@ This GitOps configuration repository is released and tagged in lockstep with the
 ## Do Not Edit Manually
 
 > [!CAUTION]
-> `helm/microservices/values-stable.yaml` is **continuously overwritten by Jenkins CI** on every successful build. Manual edits to `services.<name>.image.tag` will be overwritten by the next pipeline run. All other fields (resources, env vars, healthPath) are safe to edit.
+> [`helm/microservices/values-stable.yaml`](helm/microservices/values-stable.yaml) is **continuously overwritten by Jenkins CI** on every successful build. Manual edits to `services.<name>.image.tag` will be overwritten by the next pipeline run. All other fields (resources, env vars, healthPath) are safe to edit.
 
 For all other infrastructure changes — Jenkins config, observability stack, ArgoCD setup, Helm charts for Headlamp/pgAdmin — make changes in [`nubenetes/jenkins-2026`](https://github.com/nubenetes/jenkins-2026) and re-run the relevant script or GitHub Actions workflow.
