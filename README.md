@@ -292,8 +292,8 @@ The agent is configured with:
 |-----------|------|
 | [`nubenetes/jenkins-2026`](https://github.com/nubenetes/jenkins-2026) | **Infra repo** — cluster bootstrap, Jenkins, ArgoCD, Observability, shared pipeline library |
 | [`nubenetes/jenkins-2026-gitops-config`](https://github.com/nubenetes/jenkins-2026-gitops-config) | **This repo** — GitOps state: Helm chart, env values, ArgoCD manifests |
-| [`spring-microservices/spring-microservices-microservices`](https://github.com/spring-microservices/spring-microservices-microservices) | Upstream Spring Boot microservices source code |
-| [`spring-microservices/spring-microservices-angular`](https://github.com/spring-microservices/spring-microservices-angular) | Upstream Angular gateway UI source code |
+| [`nubenetes/jhipster-sample-app-gateway`](https://github.com/nubenetes/jhipster-sample-app-gateway) | **App source** — the JHipster **gateway** (Java / Spring Boot; it *serves* the Angular SPA, it is not itself an Angular app), built as the `gateway` service. Fork of upstream [`jhipster/jhipster-sample-app-gateway`](https://github.com/jhipster/jhipster-sample-app-gateway) (the fork carries a real `develop` branch for branch-based promotion). |
+| [`nubenetes/jhipster-sample-app-microservice`](https://github.com/nubenetes/jhipster-sample-app-microservice) | **App source** — the JHipster backend **microservice**, built as `jhipstersamplemicroservice`. Fork of upstream [`jhipster/jhipster-sample-app-microservice`](https://github.com/jhipster/jhipster-sample-app-microservice). |
 
 ---
 
