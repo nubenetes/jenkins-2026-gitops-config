@@ -20,7 +20,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: main-gateway-stable-kwzxb
+      tag: main-gateway-stable-m2vxh
     port: 8080
     healthPath: /management/health
     resources:
