@@ -20,7 +20,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: main-6
+      tag: main-gateway-stable-ztkd6
     port: 8080
     healthPath: /management/health
     resources:
