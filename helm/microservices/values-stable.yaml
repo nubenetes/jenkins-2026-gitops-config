@@ -20,7 +20,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: main-gateway-stable-tlbtg
+      tag: main-gateway-stable-kwzxb
     port: 8080
     healthPath: /management/health
     resources:
