@@ -87,10 +87,11 @@ spec:
     ports:
     - protocol: TCP
       port: 8081
-  # CI smoke tests curl /management/health directly. They run in the active CI
-  # engine's namespace (Tekton: tekton-ci, Jenkins: jenkins) — allow both on 8081.
-  # A namespaceSelector for an absent namespace simply matches nothing, so listing
-  # the engine that isn't deployed is harmless.
+  # CI smoke tests + k6 curl /management/health directly. They run in the active CI
+  # engine's RUN namespace (Jenkins: jenkins, Tekton: tekton-ci, GitHub Actions/ARC:
+  # arc-runners, Argo Workflows: argo-ci) — allow all four on 8081. A namespaceSelector
+  # for an absent namespace simply matches nothing, so listing the engines that aren't
+  # deployed is harmless.
   - from:
     - namespaceSelector:
         matchLabels:
@@ -98,6 +99,12 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: jenkins
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: arc-runners
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: argo-ci
     ports:
     - protocol: TCP
       port: 8081
