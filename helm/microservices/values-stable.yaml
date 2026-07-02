@@ -20,7 +20,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: main-2
+      tag: main-gateway-stable-shfix-zt7dj
     port: 8080
     healthPath: /management/health
     resources:
