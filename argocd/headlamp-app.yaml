@@ -1,3 +1,11 @@
+# ============================================================================
+# NON-AUTHORITATIVE REFERENCE COPY — do NOT edit or deploy from this file.
+# The authoritative manifest is argocd/headlamp-app.yaml in the infra repo
+# (https://github.com/nubenetes/jenkins-2026), rendered and applied by its
+# scripts/08.5-argocd.sh. Nothing (ArgoCD or any script) consumes this copy;
+# it exists for reader context only and may lag the deployed version
+# (e.g. the chart pin below).
+# ============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

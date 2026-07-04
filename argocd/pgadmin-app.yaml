@@ -1,3 +1,11 @@
+# ============================================================================
+# NON-AUTHORITATIVE REFERENCE COPY — do NOT edit or deploy from this file.
+# SUPERSEDED: the standalone pgadmin Application no longer exists; pgAdmin is
+# now installed by the platform-postgres app-of-apps in the infra repo
+# (https://github.com/nubenetes/jenkins-2026, argocd/platform-postgres/),
+# applied by its scripts/08.5-argocd.sh. Nothing consumes this copy; it exists
+# for reader context only.
+# ============================================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

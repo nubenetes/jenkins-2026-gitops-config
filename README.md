@@ -139,7 +139,7 @@ The updated [`values-stable.yaml`](helm/microservices/values-stable.yaml) (or [`
 
 ## ArgoCD Applications
 
-All four Applications are **installed by `scripts/08.5-argocd.sh`** in the infra repo. The manifests live here so ArgoCD can self-heal them via the `microservices` AppProject.
+All Applications are **installed by `scripts/08.5-argocd.sh`** in the infra repo, from the **infra repo's own `argocd/` manifests**. The copies under [`argocd/`](argocd/) here are **non-authoritative reference copies** — nothing (ArgoCD or any script) consumes them, and they may lag the deployed versions; each file carries a header saying so. (The standalone CNPG/pgAdmin Applications below have since been superseded by the infra repo's `argocd/platform-postgres/` app-of-apps.)
 
 ### `microservices` ApplicationSet
 Generates the stable application:
