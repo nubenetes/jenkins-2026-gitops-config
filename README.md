@@ -1,5 +1,35 @@
 # jenkins-2026-gitops-config
 
+[![GitOps source of truth](https://img.shields.io/badge/GitOps-source%20of%20truth-EF7B4D?style=flat-square&logo=argo&logoColor=white)](#golden-path-idp-infrastructure)
+[![Infra repo](https://img.shields.io/badge/infra%20repo-nubenetes%2Fjenkins--2026-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/nubenetes/jenkins-2026)
+[![main: CI-writable](https://img.shields.io/badge/main-CI--writable%20(direct%20push)-D24939?style=flat-square&logo=git&logoColor=white)](#main-branch-protection--ci-writable-do-not-require-pull-requests)
+[![Machine-managed](https://img.shields.io/badge/image%20tags-machine--managed-64748B?style=flat-square)](#do-not-edit-manually)
+
+[![Last commit](https://img.shields.io/github/last-commit/nubenetes/jenkins-2026-gitops-config?logo=git&logoColor=white)](https://github.com/nubenetes/jenkins-2026-gitops-config/commits/main)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/nubenetes/jenkins-2026-gitops-config?logo=github)](https://github.com/nubenetes/jenkins-2026-gitops-config/pulse)
+![Top language](https://img.shields.io/github/languages/top/nubenetes/jenkins-2026-gitops-config?logo=helm&logoColor=white)
+![Repo size](https://img.shields.io/github/repo-size/nubenetes/jenkins-2026-gitops-config)
+
+<!-- STACK-BADGES:START -->
+**Stack** — what this repo declares for ArgoCD to reconcile:
+
+**GitOps & delivery**  
+![Argo CD](https://img.shields.io/badge/Argo%20CD-EF7B4D?style=flat-square&logo=argo&logoColor=white) ![Helm](https://img.shields.io/badge/Helm-0F1689?style=flat-square&logo=helm&logoColor=white) ![ApplicationSet](https://img.shields.io/badge/ApplicationSet-EF7B4D?style=flat-square&logo=argo&logoColor=white)
+
+**Target platform**  
+![GKE Kubernetes](https://img.shields.io/badge/GKE%20Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white) ![Gateway API](https://img.shields.io/badge/Gateway%20API-326CE5?style=flat-square&logo=kubernetes&logoColor=white) ![NetworkPolicies](https://img.shields.io/badge/NetworkPolicies%20(zero--trust)-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
+
+**Data**  
+![CloudNativePG](https://img.shields.io/badge/CloudNativePG-336791?style=flat-square&logo=postgresql&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![pgAdmin](https://img.shields.io/badge/pgAdmin-326690?style=flat-square&logo=postgresql&logoColor=white)
+
+**Observability**  
+![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry%20auto--instrumentation-425CC7?style=flat-square&logo=opentelemetry&logoColor=white)
+
+**Deployed app** — image tags written by the active CI engine  
+![JHipster](https://img.shields.io/badge/JHipster-3E8ACC?style=flat-square&logo=jhipster&logoColor=white) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white) ![Angular](https://img.shields.io/badge/Angular-DD0031?style=flat-square&logo=angular&logoColor=white) ![GitHub Container Registry](https://img.shields.io/badge/GitHub%20Container%20Registry-181717?style=flat-square&logo=github&logoColor=white)
+
+<!-- STACK-BADGES:END -->
+
 > **GitOps configuration repository** for the [`jenkins-2026`](https://github.com/nubenetes/jenkins-2026) proof-of-concept.
 >
 > This repo is the **Git source of truth for ArgoCD**. The active CI engine writes image tags here; ArgoCD reads them and reconciles the cluster state. You do not deploy anything manually from this repo.
