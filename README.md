@@ -1,11 +1,48 @@
 # jenkins-2026-gitops-config
 
+[![GitOps source of truth](https://img.shields.io/badge/GitOps-source%20of%20truth-EF7B4D?style=flat-square&logo=argo&logoColor=white)](#golden-path-idp-infrastructure)
+[![Infra repo](https://img.shields.io/badge/infra%20repo-nubenetes%2Fjenkins--2026-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/nubenetes/jenkins-2026)
+[![main: CI-writable](https://img.shields.io/badge/main-CI--writable%20(direct%20push)-D24939?style=flat-square&logo=git&logoColor=white)](#main-branch-protection--ci-writable-do-not-require-pull-requests)
+[![Machine-managed](https://img.shields.io/badge/image%20tags-machine--managed-64748B?style=flat-square)](#do-not-edit-manually)
+
+[![Last commit](https://img.shields.io/github/last-commit/nubenetes/jenkins-2026-gitops-config?logo=git&logoColor=white)](https://github.com/nubenetes/jenkins-2026-gitops-config/commits/main)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/nubenetes/jenkins-2026-gitops-config?logo=github)](https://github.com/nubenetes/jenkins-2026-gitops-config/pulse)
+![Top language](https://img.shields.io/github/languages/top/nubenetes/jenkins-2026-gitops-config?logo=helm&logoColor=white)
+![Repo size](https://img.shields.io/github/repo-size/nubenetes/jenkins-2026-gitops-config)
+
+<!-- STACK-BADGES:START -->
+**Stack** — what this repo declares for ArgoCD to reconcile:
+
+**GitOps & delivery**  
+![Argo CD](https://img.shields.io/badge/Argo%20CD-EF7B4D?style=flat-square&logo=argo&logoColor=white) ![Helm](https://img.shields.io/badge/Helm-0F1689?style=flat-square&logo=helm&logoColor=white) ![ApplicationSet](https://img.shields.io/badge/ApplicationSet-EF7B4D?style=flat-square&logo=argo&logoColor=white)
+
+**Target platform**  
+![GKE Kubernetes](https://img.shields.io/badge/GKE%20Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white) ![Gateway API](https://img.shields.io/badge/Gateway%20API-326CE5?style=flat-square&logo=kubernetes&logoColor=white) ![NetworkPolicies](https://img.shields.io/badge/NetworkPolicies%20(zero--trust)-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
+
+**Data**  
+![CloudNativePG](https://img.shields.io/badge/CloudNativePG-336791?style=flat-square&logo=postgresql&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![pgAdmin](https://img.shields.io/badge/pgAdmin-326690?style=flat-square&logo=postgresql&logoColor=white)
+
+**Observability**  
+![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry%20auto--instrumentation-425CC7?style=flat-square&logo=opentelemetry&logoColor=white)
+
+**Deployed app** — image tags written by the active CI engine  
+![JHipster](https://img.shields.io/badge/JHipster-3E8ACC?style=flat-square&logo=jhipster&logoColor=white) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white) ![Angular](https://img.shields.io/badge/Angular-DD0031?style=flat-square&logo=angular&logoColor=white) ![GitHub Container Registry](https://img.shields.io/badge/GitHub%20Container%20Registry-181717?style=flat-square&logo=github&logoColor=white)
+
+<!-- STACK-BADGES:END -->
+
 > **GitOps configuration repository** for the [`jenkins-2026`](https://github.com/nubenetes/jenkins-2026) proof-of-concept.
 >
-> This repo is the **Git source of truth for ArgoCD**. Jenkins CI writes image tags here; ArgoCD reads them and reconciles the cluster state. You do not deploy anything manually from this repo.
+> This repo is the **Git source of truth for ArgoCD**. The active CI engine writes image tags here; ArgoCD reads them and reconciles the cluster state. You do not deploy anything manually from this repo.
+
+> ## ⚠️ `main` is CI-writable — do NOT require pull requests on it
+>
+> The active CI engine's **GitOps Update** step pushes image-tag bumps **directly** to `main` (`git push origin main`). Therefore:
+> - `main` is protected only against **force-pushes/deletions** — **not** with *require-a-pull-request*.
+> - Enabling "Require a pull request before merging" **wedges every deploy**: the CI's PAT-authenticated push is rejected (an admin PAT does **not** bypass branch protection) and the image tags freeze.
+> - This is deliberate — and the **opposite** of the [`jenkins-2026`](https://github.com/nubenetes/jenkins-2026) infra repo, whose `main` is strict-GitFlow-protected (PR-from-`develop`-only) because it is human-reviewed.
+> - Image-tag bumps here are machine-managed, not human-reviewed, so `main` must accept the CI's direct push.
 
 ## Table of Contents
-
 - [Golden Path IDP Infrastructure](#golden-path-idp-infrastructure)
 - [Relationship to `jenkins-2026`](#relationship-to-jenkins-2026)
 - [Repository Layout](#repository-layout)
@@ -20,7 +57,8 @@
 - [NetworkPolicies (zero-trust)](#networkpolicies-zero-trust)
 - [Branch Strategy](#branch-strategy)
   - [Why only the `main` branch?](#why-only-the-main-branch)
-  - [Would a `develop` branch make sense?](#would-a-develop-branch-make-sense)
+  - [The `develop` branch — used by the optional develop tier](#the-develop-branch--used-by-the-optional-develop-tier)
+  - [`main` branch protection — CI-writable](#main-branch-protection--ci-writable-do-not-require-pull-requests)
 - [OTel Auto-Instrumentation](#otel-auto-instrumentation)
 - [Related Repositories](#related-repositories)
 - [Setup & Forking Guide](#setup--forking-guide)
@@ -33,10 +71,10 @@
 This repository defines the GitOps state for the modernized **Internal Developer Platform (IDP)** architecture on GKE.
 
 ### Decoupled Core Components
-In alignment with 2026 Cloud-Native best practices, all platform infrastructure manifests are decoupled from CI build execution and managed via GitOps:
-* **Elastic Karpenter Autoscaling**: Configured with dynamic `NodePool` and `GCPNodeClass` manifests under `infrastructure/karpenter/` in the main repo to handle autoscaling of ephemeral build agents on Spot instances.
+In alignment with 2026 Cloud-Native best practices, all platform infrastructure manifests are decoupled from CI build execution and versioned under the infra repo's `infrastructure/` directory. Some are GitOps-managed via ArgoCD; the ordering-sensitive ones (the `ComputeClass`, NetworkPolicies, the live per-app Gateway `HTTPRoute`s) are applied by the infra repo's idempotent scripts (`01-namespaces.sh`, `09-gateway.sh`) — see the infra repo's `docs/201-ARCHITECTURE.md` for the imperative-vs-GitOps split:
+* **Elastic Node Auto-Provisioning (NAP)**: GKE-native (GA) node auto-provisioning driven by a Custom `ComputeClass` under `infrastructure/compute-classes/` in the main repo, auto-creating **Spot, scale-to-zero** node pools for ephemeral build agents (the Google-supported equivalent of Karpenter — there is no production-ready Karpenter provider for GCP).
 * **GKE Gateway API Routing**: Secure HTTPS traffic routing for Jenkins and Headlamp is mapped under `infrastructure/gateway/` using native `Gateway`, `HTTPRoute`, and `BackendTLSPolicy` (zero-trust TLS to pods).
-* **Workload-Aware scheduling & Security**: Maps K8s v1.36 `PodGroup` (Gang scheduling) and `ConstrainedImpersonation` policies for Headlamp UI users.
+* **Workload-Aware scheduling & Security**: `PodGroup` gang scheduling via the scheduler-plugins CRD (`scheduling.x-k8s.io/v1alpha1`, `infrastructure/scheduling/PodGroup.yaml`) plus a constrained-impersonation RBAC `ClusterRole` (resourceNames-scoped `impersonate` verbs, `infrastructure/headlamp/ImpersonationPolicy.yaml`) for Headlamp UI users.
 
 ---
 
@@ -61,7 +99,7 @@ In alignment with 2026 Cloud-Native best practices, all platform infrastructure 
 |  argocd/            --- Application / AppSet manifests (deployed   |
 |                         FROM infra repo, stored here for clarity)  |
 |  helm/microservices/--- Helm chart + env values files              |
-|    values-stable.yaml<- Jenkins writes image tags here             |
+|    values-stable.yaml<- active CI engine writes tags             |
 +--------------------------------------------------------------------+
 ```
 
@@ -69,8 +107,8 @@ In alignment with 2026 Cloud-Native best practices, all platform infrastructure 
 |--------|------------|-------|
 | Bootstrap cluster & install ArgoCD | `scripts/08.5-argocd.sh` | `jenkins-2026` |
 | Register this repo in ArgoCD | `scripts/08.5-argocd.sh` | `jenkins-2026` |
-| Build & push container images | Jenkins pipeline (`MicroservicesPipeline`) | `jenkins-2026/vars/` |
-| **Write image tag to values file** | Jenkins (`vars/microservicesDeploy.groovy`) | **this repo** |
+| Build & push container images | Active CI engine — one of four, selected by `ci.engine`: Jenkins (`MicroservicesPipeline`), Tekton, GitHub Actions/ARC, or Argo Workflows | `jenkins-2026/vars/`, `jenkins-2026/tekton/`, `jenkins-2026/jenkins/pipelines/seed/microservices-ci.yml.tmpl`, or `jenkins-2026/argoworkflows/` |
+| **Write image tag to values file** | Active CI engine — Jenkins (`vars/microservicesDeploy.groovy`), Tekton (`gitops-deploy` Task), GitHub Actions (rendered `microservices-ci` workflow's GitOps-bump step), or Argo Workflows (`gitops-deploy` step) | **this repo** |
 | Detect tag change & deploy to cluster | ArgoCD (automated sync) | cluster |
 | Grafana dashboard push | `scripts/07-grafana-dashboards.sh` | `jenkins-2026` |
 
@@ -107,16 +145,18 @@ jenkins-2026-gitops-config/
             └── _helpers.tpl           # Shared template helpers
 ```
 
+> **Note**: the `argocd/` manifests here are **reference mirrors** and can lag the deployed reality — `scripts/08.5-argocd.sh` applies the copies in the **infra repo's** `argocd/` directory (where, e.g., `cnpg-operator` + `pgadmin` are now rendered by the `platform-postgres` app-of-apps and chart versions are pinned). The infra repo is authoritative for Application manifests; this repo is authoritative for `helm/microservices/`.
+
 ---
 
 ## How Image Tags Are Updated
 
-Jenkins runs the `microservicesDeploy.groovy` shared-library step on every successful build:
+The **active CI engine** — one of **four**, selected by `ci.engine` in the infra repo: **Jenkins** (default), **Tekton**, **GitHub Actions / ARC**, or **Argo Workflows** — updates the image tag here on every successful build. With Jenkins it is the `microservicesDeploy.groovy` shared-library step; with Tekton the `gitops-deploy` Task; with GitHub Actions the GitOps-bump step of the rendered `microservices-ci` workflow; with Argo Workflows the `gitops-deploy` step of the microservices WorkflowTemplate. All four clone this repo, bump the tag in the values file with `yq`, and push:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Jenkins as Jenkins CI Pipeline
+    actor Jenkins as Active CI Pipeline (any of the 4 engines)
     participant GitOps as jenkins-2026-gitops-config (Git)
     participant ArgoCD as ArgoCD Server
     participant Cluster as Kubernetes Cluster
@@ -130,30 +170,33 @@ sequenceDiagram
     ArgoCD-->>Jenkins: Sync finished & Healthy
 ```
 
-The updated `values-stable.yaml` is the **only file Jenkins ever modifies** in this repo. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo.
+The updated [`values-stable.yaml`](helm/microservices/values-stable.yaml) (or [`values-develop.yaml`](helm/microservices/values-develop.yaml)) is the **only file the CI engine ever modifies** in this repo — identically whichever of the four engines is active. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo. (Tekton itself is GitOps-managed by ArgoCD from the **infra** repo's `tekton/` + `argocd/tekton/`, not from here — this repo holds only the deployment target, which is CI-engine-agnostic. See [`docs/403-TEKTON.md`](https://github.com/nubenetes/jenkins-2026/blob/main/docs/403-TEKTON.md).)
 
 ---
 
 ## ArgoCD Applications
 
-All four Applications are **installed by `scripts/08.5-argocd.sh`** in the infra repo. The manifests live here so ArgoCD can self-heal them via the `microservices` AppProject.
+All Applications are **installed by `scripts/08.5-argocd.sh`** in the infra repo, from the **infra repo's own `argocd/` manifests**. The copies under [`argocd/`](argocd/) here are **non-authoritative reference copies** — nothing (ArgoCD or any script) consumes them, and they may lag the deployed versions; each file carries a header saying so. (The standalone CNPG/pgAdmin Applications below have since been superseded by the infra repo's `argocd/platform-postgres/` app-of-apps.)
 
 ### `microservices` ApplicationSet
 Generates the stable application:
 
 | Generated App | Namespace | Values file | Branch |
 |---------------|-----------|-------------|--------|
-| `microservices-stable` | `microservices` | `values-stable.yaml` | `main` |
+| `microservices-stable` | `microservices` | [`values-stable.yaml`](helm/microservices/values-stable.yaml) | `main` |
 
-It uses `prune: true` + `selfHeal: true`. Only the **stable** application is generated; the develop tier is **disabled by default** (the AppSet emits a `develop` element only when `microservices.developTrackEnabled` is set in the infra repo). The dormant `values-develop.yaml` stays in the chart for when that track is re-enabled — see [Branch Strategy](#branch-strategy).
+> The stable app's `targetRevision` is templated (`{{branchStable}}`) with the infra **deploy branch** (`J2026_SELF_REPO_BRANCH`): `main` in production, but a `Day1` dispatched from the infra repo's `develop` branch points the stable app at this repo's `develop` branch to validate the whole platform before promotion.
+
+It uses `prune: true` + `selfHeal: true`. Only the **stable** application is generated; the develop tier is **disabled by default** (the AppSet emits a `develop` element only when `microservices.developTrackEnabled` is set in the infra repo). The dormant [`values-develop.yaml`](helm/microservices/values-develop.yaml) stays in the chart for when that track is re-enabled — see [Branch Strategy](#branch-strategy).
 
 ### Standalone Applications
 
 | Application | Source | Target Namespace | Notes |
 |-------------|--------|-----------------|-------|
-| `headlamp` | `helm/headlamp/values.yaml` (infra repo) | `headlamp` | Kubernetes UI, Google OIDC |
-| `pgadmin` | `helm/pgadmin/` (infra repo) | `pgadmin` | Postgres admin UI |
-| `cnpg-operator` | `cloudnative-pg/cloudnative-pg` | `cnpg-system` | CNPG, ServerSideApply |
+| `headlamp` | upstream `headlamp` chart + `helm/headlamp/values.yaml` (infra repo, multi-source) | `headlamp` | Kubernetes UI, Google OIDC |
+| `platform-postgres` (app-of-apps) | `argocd/platform-postgres/` (infra repo) | `argocd` | parent of the two rows below |
+| ├ `cnpg-operator` | `cloudnative-pg/cloudnative-pg` chart (version pinned in the infra repo's `argocd/platform-postgres/values.yaml`) | `cnpg-system` | ServerSideApply + Replace (huge CRDs) |
+| └ `pgadmin` | `helm/pgadmin/` (infra repo) | `pgadmin` | Postgres admin UI |
 
 ---
 
@@ -180,7 +223,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: main           # ← Jenkins writes a new SHA here on every build
+      tag: main-16        # ← the active CI engine bumps this via yq on every build (immutable `<branch>-<build#>[-<sha8>]` tag, not a bare SHA)
     port: 8080
     healthPath: /management/health
     resources:
@@ -195,7 +238,7 @@ services:
 
 | File | `env` | `namespace` | ArgoCD App |
 |------|-------|-------------|-----------|
-| `values-stable.yaml` | `stable` | `microservices` | `microservices-stable` |
+| [`values-stable.yaml`](helm/microservices/values-stable.yaml) | `stable` | `microservices` | `microservices-stable` |
 
 The `env` value becomes the `deployment.environment` OTel resource attribute on every trace/metric/log emitted by deployed services, enabling environment filtering in Grafana dashboards.
 
@@ -203,12 +246,12 @@ The `env` value becomes the `deployment.environment` OTel resource attribute on 
 
 ## Postgres (CNPG)
 
-Each service in `.Values.services` gets CNPG `Cluster` and `Pooler` CRs templated by `templates/postgres.yaml` (the template ranges over **every** service unconditionally; per-service `postgres.storageSize` / `walStorageSize` are the only optional knobs). The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
+Each service in `.Values.services` gets CNPG `Cluster` and `Pooler` CRs templated by [`templates/postgres.yaml`](helm/microservices/templates/postgres.yaml) (the template ranges over **every** service unconditionally; per-service `postgres.storageSize` / `walStorageSize` are the only optional knobs). The CloudNative-PG Operator (installed via the `cnpg-operator` Application) reconciles these CRs into:
 
 - A highly-available **PostgreSQL 18.3** database tier — **3 instances**, zonal anti-affinity, dynamic primary promotion. The image is **pinned** explicitly (`spec.imageName`, default `ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie`, overridable via `global.postgresImage`) so the DB version is reproducible; bump it deliberately
 - Connection pooling managed via native PgBouncer pooler deployments
 - Automated Barman Object Store backups targeting Google Cloud Storage (GCS)
-- A secret `postgres-<service>-app` injected into the service pod via `SPRING_DATASOURCE_URL` or `SPRING_R2DBC_URL`
+- Credentials from the auto-generated secret `postgres-<service>-app` injected into the service pod via `SPRING_DATASOURCE_USERNAME`/`_PASSWORD` and `SPRING_R2DBC_USERNAME`/`_PASSWORD` secretKeyRefs; the corresponding `SPRING_DATASOURCE_URL`/`SPRING_R2DBC_URL` point at the `postgres-<service>-pooler` Service (all traffic goes through PgBouncer)
 
 Two clusters are provisioned in total — one per service in the stable environment:
 
@@ -221,7 +264,7 @@ Two clusters are provisioned in total — one per service in the stable environm
 
 ## NetworkPolicies (zero-trust)
 
-`templates/networkpolicies.yaml` ships a default-deny posture for the `microservices`
+[`templates/networkpolicies.yaml`](helm/microservices/templates/networkpolicies.yaml) ships a default-deny posture for the `microservices`
 namespace (enforced by GKE **Dataplane V2 / Cilium-eBPF** in the infra repo). Four
 policies:
 
@@ -229,39 +272,53 @@ policies:
 |---|---|---|---|
 | `default-deny` | all pods | none | CoreDNS (`kube-system:53`) only |
 | `gateway-policy` | `gateway` pod | **8080** (from the Gateway/LB) | jhipster **8081**, its Postgres **5432**, OTLP `observability` **4317/4318** |
-| `microservice-policy` | `jhipstersamplemicroservice` pod | **8081** from the `gateway` pod **and** the **`tekton-ci` + `jenkins`** namespaces (so CI smoke tests can hit `/management/health`) | its Postgres **5432**, OTLP **4317/4318** |
+| `microservice-policy` | `jhipstersamplemicroservice` pod | **8081** from the `gateway` pod **and** the four CI run namespaces — **`jenkins`, `tekton-ci`, `arc-runners`, `argo-ci`** (a selector for an absent namespace matches nothing, so listing inactive engines is harmless) — so CI smoke tests can hit `/management/health` | its Postgres **5432**, OTLP **4317/4318** |
 | `postgres-policy` | `cnpg.io/cluster` pods | **5432** from the app pods, `pgadmin` ns, intra-cluster | CNPG replication + **443** |
 
-The CI-namespace ingress on 8081 is what lets the Jenkins/Tekton smoke stage reach the
+The CI-namespace ingress on 8081 is what lets the active engine's smoke/k6 stage reach the
 microservice under enforcement (see [`jenkins-2026` docs/501](https://github.com/nubenetes/jenkins-2026/blob/main/docs/501-PLATFORM_OPERATIONS.md#networkpolicy-matrix)).
 
 ---
 
 ## Branch Strategy
 
-The GitOps repository uses the `main` branch to target `microservices-stable` deployments. Jenkins updates `helm/microservices/values-stable.yaml` on `main` to promote new image versions. The `develop` tier is **disabled by default** (only `microservices-stable` is generated); its `values-develop.yaml` stays dormant in the chart and is activated only when `microservices.developTrackEnabled` is set in the infra repo.
+The GitOps repository uses the `main` branch to target `microservices-stable` deployments. The active CI engine (any of the four — Jenkins, Tekton, GitHub Actions/ARC, Argo Workflows) updates [`helm/microservices/values-stable.yaml`](helm/microservices/values-stable.yaml) on `main` to promote new image versions. The `develop` tier is **off by default** (only `microservices-stable` is generated); its [`values-develop.yaml`](helm/microservices/values-develop.yaml) is activated only when `microservices.developTrackEnabled` is set in the infra repo — see [The `develop` branch](#the-develop-branch--used-by-the-optional-develop-tier) below.
 
 ### Why only the `main` branch?
 
 1. **Single Environment Target**: In this unified model the develop tier is disabled by default, leaving a single active target namespace (`microservices`); the develop track can be re-enabled (see below).
-2. **Simplified Promotion**: The Jenkins CI pipeline writes image tags directly inside [values-stable.yaml](helm/microservices/values-stable.yaml) on the `main` branch of the GitOps repository.
+2. **Simplified Promotion**: The active CI engine writes image tags directly inside [values-stable.yaml](helm/microservices/values-stable.yaml) on the `main` branch of the GitOps repository.
 
-### Would a `develop` branch make sense?
+### The `develop` branch — used by the optional develop tier
 
-Yes, but **only if you restore a multi-environment deployment model** (e.g., dev/staging vs. stable namespaces):
-
-* **Testing Infrastructure Changes**: If developers need to test Helm chart updates (e.g., resource limits, new environment variables, or sidecar additions) in a sandbox (`develop`) namespace before promoting them to stable (`main`), they would push changes to the `develop` branch of the GitOps repo first for verification.
-* **Tracking Parallel Code Tracks**: If upstream repositories build from both a `develop` branch (dev builds) and a `main` branch (stable releases), Jenkins would commit dev tags to a `values-develop.yaml` on the GitOps `develop` branch (synced to a dev namespace), and stable tags to [values-stable.yaml](helm/microservices/values-stable.yaml) on the GitOps `main` branch (synced to the stable namespace).
+A `develop` branch **exists and is wired in**: enabling `microservices.developTrackEnabled` in the infra repo (or the `develop_track` workflow input / `JENKINS2026_DEVELOP_TRACK_ENABLED`) makes the ApplicationSet generate a second `microservices-develop` Application that syncs [`values-develop.yaml`](helm/microservices/values-develop.yaml) from this repo's `develop` branch into the `microservices-develop` namespace, and the active CI engine pushes develop-tier tag bumps to `develop` instead of `main` (stable bumps always go to `main`). With the flag off (the default) only `main` is deployed from.
 
 ---
 
+### `main` branch protection — CI-writable (do NOT require pull requests)
+
+`main` is **direct-push** so the CI's *GitOps Update* step can push image-tag bumps unattended. Actual `main` protection (GitHub -> Settings -> Branches):
+
+| Setting | Value | Why |
+|---|---|---|
+| Require a pull request before merging | **off** | The CI pushes tags straight to `main` (`git push origin main`). Require-PR rejects the PAT push (an admin PAT does **not** bypass protection) and **wedges every deploy**. |
+| Required status checks | **none** | Image-tag bumps are machine-generated — nothing to gate them on. |
+| Include administrators | **off** | — |
+| Allow force pushes | **off** | History on `main` is protected. |
+| Allow deletions | **off** | `main` cannot be deleted. |
+
+- **Allowed -> `main`:** direct push (the CI's PAT, or a human pushing a chart/values edit).
+- **Forbidden -> `main`:** force-push, branch deletion.
+
+> WARNING: This is the **opposite** of the infra repo [`nubenetes/jenkins-2026`](https://github.com/nubenetes/jenkins-2026), whose `main` is **strict GitFlow** (require-PR from `develop` only, `gitflow-guard` required check, `enforce_admins=on`). The asymmetry is deliberate: the infra repo is human-reviewed, this repo is machine-managed. Full allowed/forbidden matrix: infra repo [`docs/101` -> Branch protection & GitFlow promotion](https://github.com/nubenetes/jenkins-2026/blob/main/docs/101-GITHUB_ACTIONS_WORKFLOWS.md).
+
 ## OTel Auto-Instrumentation
 
-The `templates/instrumentation.yaml` template creates an `Instrumentation` CR (managed by the OTel Operator, installed by `scripts/03-observability.sh`). This automatically attaches the OTel Java agent to every Spring Boot service pod via a mutating webhook — no changes to application code or Docker images are required.
+The [`templates/instrumentation.yaml`](helm/microservices/templates/instrumentation.yaml) template creates an `Instrumentation` CR (managed by the OTel Operator, installed by `scripts/02-otel-operator.sh`; the collector it exports to is installed by `scripts/03-observability.sh`). This automatically attaches the OTel Java agent to every Spring Boot service pod via a mutating webhook — no changes to application code or Docker images are required.
 
 The agent is configured with:
 - `OTEL_EXPORTER_OTLP_ENDPOINT` → the in-cluster OTel Collector gateway
-- `OTEL_RESOURCE_ATTRIBUTES` → `service.name`, `service.namespace`, `deployment.environment`
+- `OTEL_RESOURCE_ATTRIBUTES` → `deployment.environment`, `service.namespace` (`service.name` is set per service via `OTEL_SERVICE_NAME` in the Deployment template)
 - `OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED=true` → injects `trace_id` into log lines for Loki correlation
 
 ---
@@ -272,8 +329,8 @@ The agent is configured with:
 |-----------|------|
 | [`nubenetes/jenkins-2026`](https://github.com/nubenetes/jenkins-2026) | **Infra repo** — cluster bootstrap, Jenkins, ArgoCD, Observability, shared pipeline library |
 | [`nubenetes/jenkins-2026-gitops-config`](https://github.com/nubenetes/jenkins-2026-gitops-config) | **This repo** — GitOps state: Helm chart, env values, ArgoCD manifests |
-| [`spring-microservices/spring-microservices-microservices`](https://github.com/spring-microservices/spring-microservices-microservices) | Upstream Spring Boot microservices source code |
-| [`spring-microservices/spring-microservices-angular`](https://github.com/spring-microservices/spring-microservices-angular) | Upstream Angular gateway UI source code |
+| [`nubenetes/jhipster-sample-app-gateway`](https://github.com/nubenetes/jhipster-sample-app-gateway) | **App source** — the JHipster **gateway** (Java / Spring Boot; it *serves* the Angular SPA, it is not itself an Angular app), built as the `gateway` service. Fork of upstream [`jhipster/jhipster-sample-app-gateway`](https://github.com/jhipster/jhipster-sample-app-gateway) (the fork carries a real `develop` branch for branch-based promotion). |
+| [`nubenetes/jhipster-sample-app-microservice`](https://github.com/nubenetes/jhipster-sample-app-microservice) | **App source** — the JHipster backend **microservice**, built as `jhipstersamplemicroservice`. Fork of upstream [`jhipster/jhipster-sample-app-microservice`](https://github.com/jhipster/jhipster-sample-app-microservice). |
 
 ---
 
@@ -282,20 +339,19 @@ The agent is configured with:
 If you are setting up this PoC for yourself or your organization, you must fork this configuration repository along with the main [infrastructure repository](https://github.com/nubenetes/jenkins-2026).
 
 1. **Fork the Repository**: Fork this repository (`jenkins-2026-gitops-config`) to your GitHub account/organization.
-2. **Update Main Infra Configuration**: In your fork of the infra repository (`jenkins-2026`), update `config/config.yaml` to point `jenkins.selfRepoUrl` and `microservices.git.org` to your own forks.
-3. **Configure Git Credentials**: Ensure you set `GIT_USERNAME` and `GIT_TOKEN` secrets in the infra repository Actions settings, as the Jenkins pipeline dynamically clones and commits updated image tags to this GitOps repository.
+2. **Update Main Infra Configuration**: In your fork of the infra repository (`jenkins-2026`), update `config/config.yaml`:
+   - `gitops.repoUrl` → your fork of **this** repository (e.g. `https://github.com/<you>/jenkins-2026-gitops-config.git`). This single knob repoints the ArgoCD ApplicationSet **and** all four CI engines' image-tag-bump stages — no script/manifest edits needed. Per-run override: the `JENKINS2026_GITOPS_REPO_URL` env var. See the infra repo's `docs/502-MICROSERVICES_GITOPS.md` § *Repointing the GitOps repo*.
+   - `jenkins.selfRepoUrl` and `microservices.git.org` → your own infra/app forks.
+3. **Configure Git Credentials**: Ensure you set `GIT_USERNAME` and `GIT_TOKEN` secrets in the infra repository Actions settings, as the active CI engine's pipeline dynamically clones and commits updated image tags to this GitOps repository — the token must have push access to your `gitops.repoUrl` fork.
 
 ---
 
 ## Release & Versioning Strategy
 
-This GitOps configuration repository is released and tagged in lockstep with the main [infrastructure repository](https://github.com/nubenetes/jenkins-2026):
+This repository is versioned **independently** of the infra repo — it keeps its own `v0.9.x` line while `jenkins-2026` is on `v1.x`. There is deliberately **no lockstep**: ArgoCD tracks this repo by **branch**, not tag, and ~90% of commits are machine-written image-tag bumps, so infra release milestones do not map onto this repo.
 
-* **Git Tags**: Every stable release of the infrastructure stack (e.g. `v0.9.0`) has a matching tag `v0.9.0` applied to both repositories.
-* **Release Flow**:
-  1. Infrastructure modifications and Helm chart configurations are tested on `develop`.
-  2. A Pull Request is opened to merge `develop` into `main`.
-  3. Once merged, a GitHub Release is drafted explaining the changes, and the tag is pushed to remote.
+* **Git Tags**: a `v0.9.N` tag + GitHub Release is cut only when a meaningful chart/manifest milestone lands here.
+* **Release Flow**: human chart/config changes are tested on `develop` and merged to `main` via PR (CI tag bumps bypass this and push straight to `main`); the tag is then pushed and a Release drafted.
 
 ---
 
@@ -310,6 +366,6 @@ This GitOps configuration repository is released and tagged in lockstep with the
 ## Do Not Edit Manually
 
 > [!CAUTION]
-> `helm/microservices/values-stable.yaml` is **continuously overwritten by Jenkins CI** on every successful build. Manual edits to `services.<name>.image.tag` will be overwritten by the next pipeline run. All other fields (resources, env vars, healthPath) are safe to edit.
+> [`helm/microservices/values-stable.yaml`](helm/microservices/values-stable.yaml) is **continuously overwritten by the active CI engine** on every successful build. Manual edits to `services.<name>.image.tag` will be overwritten by the next pipeline run. All other fields (resources, env vars, healthPath) are safe to edit.
 
 For all other infrastructure changes — Jenkins config, observability stack, ArgoCD setup, Helm charts for Headlamp/pgAdmin — make changes in [`nubenetes/jenkins-2026`](https://github.com/nubenetes/jenkins-2026) and re-run the relevant script or GitHub Actions workflow.

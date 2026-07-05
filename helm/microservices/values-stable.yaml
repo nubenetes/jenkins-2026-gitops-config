@@ -20,7 +20,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: main
+      tag: main-16
     port: 8080
     healthPath: /management/health
     resources:
@@ -45,7 +45,7 @@ services:
     type: java
     image:
       repository: jhipstersamplemicroservice
-      tag: main
+      tag: main-11
     port: 8081
     healthPath: /management/health
     resources:
