@@ -7,10 +7,10 @@ This document details the core GitOps configuration workflows and maintenance ca
 ## 🛠️ GitOps Management Skills
 
 ### Skill 1: Update Microservice Deployed Image Tags
-Used by Jenkins pipelines (and manual promotions) to deploy a new version of a microservice by writing its tag to the Helm values file.
+Used by the active CI engine's GitOps step (Jenkins `microservicesDeploy.groovy`, Tekton `gitops-deploy`, GitHub Actions' GitOps-bump step, Argo Workflows' `gitops-deploy` step) — and by manual promotions — to deploy a new version of a microservice by writing its tag to the Helm values file.
 *   **Target File:** [`helm/microservices/values-stable.yaml`](helm/microservices/values-stable.yaml)
 *   **Procedure:**
-    1. Update the appropriate tag under `gateway.image.tag` or `jhipstersamplemicroservice.image.tag`.
+    1. Update the appropriate tag under `services.gateway.image.tag` or `services.jhipstersamplemicroservice.image.tag`.
     2. Commit and push to the `main` branch.
 
 ### Skill 2: Inspect ArgoCD Sync State

@@ -20,15 +20,16 @@ The project is structured as follows:
         ├── Chart.yaml
         ├── templates/
         ├── values.yaml          # Base values for microservices Helm deployment
-        └── values-stable.yaml   # Stable environment-specific overrides (namespace: microservices)
+        ├── values-stable.yaml   # Stable environment-specific overrides (namespace: microservices)
+        └── values-develop.yaml  # Dormant develop-tier overrides (namespace: microservices-develop)
 ```
 
 ---
 
 ## 🚀 GitOps Promotion Flow
 
-1. **Jenkins Trigger**: Jenkins pipelines compile code, build container images, and push them to GitHub Packages (`ghcr.io/nubenetes/jenkins-2026-microservices/...`).
-2. **Tag Promotion**: The Jenkins deployment stage (`microservicesDeploy.groovy`) writes the newly built image tags to [`helm/microservices/values-stable.yaml`](helm/microservices/values-stable.yaml) in this repository, commits, and pushes them.
+1. **CI Trigger**: the active CI engine (Jenkins by default; Tekton, GitHub Actions/ARC or Argo Workflows via the infra repo's `ci.engine`) compiles code, builds container images, and pushes them to GitHub Packages (`ghcr.io/nubenetes/jenkins-2026-microservices/...`).
+2. **Tag Promotion**: the engine's GitOps step (Jenkins `microservicesDeploy.groovy`, Tekton `gitops-deploy`, the GHA workflow's GitOps-bump step, or the Argo Workflows `gitops-deploy` step) writes the newly built image tags to [`helm/microservices/values-stable.yaml`](helm/microservices/values-stable.yaml), commits, and pushes.
 3. **ArgoCD Sync**: ArgoCD detects the change in this repository, automatically syncs the live Kubernetes cluster to pull the new images, and applies any updated Kubernetes resources.
 
 ---
@@ -41,4 +42,4 @@ The project is structured as follows:
    kubectl get applications -n argocd
    ```
    Check if applications are `Synced` and `Healthy`.
-3. **ApplicationSet Key Paths**: The ApplicationSet ([`microservices-appset.yaml`](argocd/microservices-appset.yaml)) loops over the services defined in its generator, targeting the stable branch and namespace.
+3. **ApplicationSet Key Paths**: The ApplicationSet ([`microservices-appset.yaml`](argocd/microservices-appset.yaml)) loops over **environments** in its list generator (`stable` always; `develop` only when the develop track is enabled), pointing each generated Application at `helm/microservices` with the matching `values-<env>.yaml`. The **services** are defined inside those values files, not in the generator.
