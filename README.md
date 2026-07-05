@@ -99,7 +99,7 @@ In alignment with 2026 Cloud-Native best practices, all platform infrastructure 
 |  argocd/            --- Application / AppSet manifests (deployed   |
 |                         FROM infra repo, stored here for clarity)  |
 |  helm/microservices/--- Helm chart + env values files              |
-|    values-stable.yaml<- active CI engine writes tags             |
+|    values-stable.yaml<- active CI engine writes tags               |
 +--------------------------------------------------------------------+
 ```
 
