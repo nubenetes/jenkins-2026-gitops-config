@@ -32,7 +32,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: develop-gateway-develop-m5crx
+      tag: develop-gateway-develop-7d7gb
     port: 8080
     healthPath: /management/health
     resources:
