@@ -19,6 +19,10 @@ global:
   # inheriting the CNPG operator's floating default. Bump deliberately.
   postgresImage: ghcr.io/cloudnative-pg/postgresql:18.3-system-trixie
 
+  # Opt-in Backend TLS re-encryption
+  backendTls:
+    enabled: false
+
 # Kubernetes namespace this release is installed into (also passed to
 # `helm upgrade --install --namespace`).
 namespace: microservices
