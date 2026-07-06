@@ -20,7 +20,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: main-3
+      tag: main-5
     port: 8080
     healthPath: /management/health
     resources:
