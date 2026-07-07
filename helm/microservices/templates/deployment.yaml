@@ -53,6 +53,11 @@ spec:
             items:
               - key: CacheConfiguration.class
                 path: CacheConfiguration.class
+        {{- if $.Values.global.backendTls.enabled }}
+        - name: gateway-tls
+          secret:
+            secretName: gateway-tls
+        {{- end }}
         {{- end }}
       {{- end }}
       containers:
@@ -105,6 +110,19 @@ spec:
                 -XX:MaxRAMPercentage=50.0
                 -XX:+UseStringDeduplication
                 -XX:+ExitOnOutOfMemoryError
+            {{- if and (eq $name "gateway") $.Values.global.backendTls.enabled }}
+            - name: SERVER_SSL_ENABLED
+              value: "true"
+            - name: SERVER_SSL_KEY_STORE_TYPE
+              value: "PKCS12"
+            - name: SERVER_SSL_KEY_STORE
+              value: "file:/certs/keystore.p12"
+            - name: SERVER_SSL_KEY_STORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-tls-password
+                  key: password
+            {{- end }}
             {{- end }}
             {{- range $svc.env }}
             - name: {{ .name }}
@@ -153,6 +171,9 @@ spec:
             httpGet:
               path: {{ $svc.healthPath }}/readiness
               port: http
+              {{- if and (eq $name "gateway") $.Values.global.backendTls.enabled }}
+              scheme: HTTPS
+              {{- end }}
             periodSeconds: 10
             failureThreshold: 60
           volumeMounts:
@@ -163,6 +184,11 @@ spec:
             - name: gateway-cache-patch
               mountPath: /app/classes/io/github/jhipster/sample/config/CacheConfiguration.class
               subPath: CacheConfiguration.class
+            {{- if $.Values.global.backendTls.enabled }}
+            - name: gateway-tls
+              mountPath: /certs
+              readOnly: true
+            {{- end }}
             {{- end }}
           {{- end }}
           resources:
@@ -172,6 +198,9 @@ spec:
             httpGet:
               path: {{ $svc.healthPath }}/readiness
               port: http
+              {{- if and (eq $name "gateway") $.Values.global.backendTls.enabled }}
+              scheme: HTTPS
+              {{- end }}
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 6
@@ -179,6 +208,9 @@ spec:
             httpGet:
               path: {{ $svc.healthPath }}/liveness
               port: http
+              {{- if and (eq $name "gateway") $.Values.global.backendTls.enabled }}
+              scheme: HTTPS
+              {{- end }}
             initialDelaySeconds: 60
             periodSeconds: 20
             failureThreshold: 6
