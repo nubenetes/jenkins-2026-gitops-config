@@ -32,7 +32,7 @@ services:
     type: java
     image:
       repository: gateway
-      tag: develop-gateway-develop-h8s28
+      tag: develop-gateway-develop-fnws6
     port: 8080
     healthPath: /management/health
     resources:
