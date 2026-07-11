@@ -36,7 +36,7 @@
 
 > ## ⚠️ `main` is CI-writable — do NOT require pull requests on it
 >
-> The active CI engine's **GitOps Update** step pushes image-tag bumps **directly** to `main` (`git push origin main`). Therefore:
+> The active CI engine's **GitOps Update** step pushes image-tag bumps **directly** to the env branch — the **deploy branch** for stable (`git push origin main` in prod; a develop-launched validation cluster pushes `develop`, matching the stable app's `{{branchStable}}` auto-track below) and `develop` for the develop tier. Therefore:
 > - `main` is protected only against **force-pushes/deletions** — **not** with *require-a-pull-request*.
 > - Enabling "Require a pull request before merging" **wedges every deploy**: the CI's PAT-authenticated push is rejected (an admin PAT does **not** bypass branch protection) and the image tags freeze.
 > - This is deliberate — and the **opposite** of the [`jenkins-2026`](https://github.com/nubenetes/jenkins-2026) infra repo, whose `main` is strict-GitFlow-protected (PR-from-`develop`-only) because it is human-reviewed.
@@ -128,7 +128,7 @@ jenkins-2026-gitops-config/
     └── microservices/
         ├── Chart.yaml                 # Helm chart metadata
         ├── values.yaml                # Base defaults / schema documentation
-        ├── values-stable.yaml         # Stable env (namespace: microservices, branch: main)
+        ├── values-stable.yaml         # Stable env (namespace: microservices, branch: the infra deploy branch — main in prod)
         ├── values-develop.yaml        # Dormant develop-tier values (only used if a develop track is re-enabled)
         └── templates/
             ├── deployment.yaml        # Deployment per service in .Values.services
@@ -170,7 +170,7 @@ sequenceDiagram
     ArgoCD-->>Jenkins: Sync finished & Healthy
 ```
 
-The updated [`values-stable.yaml`](helm/microservices/values-stable.yaml) (or [`values-develop.yaml`](helm/microservices/values-develop.yaml)) is the **only file the CI engine ever modifies** in this repo — identically whichever of the four engines is active. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo. (Tekton itself is GitOps-managed by ArgoCD from the **infra** repo's `tekton/` + `argocd/tekton/`, not from here — this repo holds only the deployment target, which is CI-engine-agnostic. See [`docs/403-TEKTON.md`](https://github.com/nubenetes/jenkins-2026/blob/main/docs/403-TEKTON.md).)
+The updated [`values-stable.yaml`](helm/microservices/values-stable.yaml) (or [`values-develop.yaml`](helm/microservices/values-develop.yaml)) is the **only file the CI engine ever modifies** in this repo — identically whichever of the four engines is active. Everything else is managed by humans or by `scripts/08.5-argocd.sh` in the infra repo. (Tekton itself is GitOps-managed by ArgoCD from the **infra** repo's `tekton/` + `argocd/tekton/`, not from here — this repo holds only the deployment target, which is CI-engine-agnostic. See [`docs/404-TEKTON.md`](https://github.com/nubenetes/jenkins-2026/blob/main/docs/404-TEKTON.md).)
 
 ---
 
