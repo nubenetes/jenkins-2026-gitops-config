@@ -45,7 +45,7 @@ services:
     type: java
     image:
       repository: jhipstersamplemicroservice
-      tag: main-1
+      tag: main-jhipstersamplemicroservice-stable-2srg5
     port: 8081
     healthPath: /management/health
     resources:
