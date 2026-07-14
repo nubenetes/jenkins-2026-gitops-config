@@ -9,6 +9,12 @@ metadata:
     app.kubernetes.io/name: postgres-{{ $name }}
     {{- include "microservices.labels" $ | nindent 4 }}
 spec:
+  # Exclude the CNPG-managed Postgres pods from Cloud Service Mesh sidecar injection: the
+  # namespace-wide istio.io/rev label (scripts/08.85) would otherwise mesh the database and
+  # break its replication + pooler mTLS hops. inheritedMetadata propagates to all resources.
+  inheritedMetadata:
+    annotations:
+      sidecar.istio.io/inject: "false"
   # Pin the PostgreSQL image explicitly (instead of inheriting the CNPG operator's
   # floating default) so the database major/minor is reproducible and upgrades are
   # deliberate - matches the repo-wide "pin everything" policy. Override per-env via
@@ -117,6 +123,12 @@ spec:
   # global.poolerInstances: 1 (the JDBC URL still points at the pooler Service).
   instances: {{ $.Values.global.poolerInstances | default 3 }}
   type: rw
+  # Exclude the PgBouncer pooler pods from mesh injection (same reason as the Cluster
+  # above). CNPG adds the pgbouncer container to this template.
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
   pgbouncer:
     poolMode: session
 {{- end }}
