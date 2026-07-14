@@ -30,6 +30,13 @@ spec:
         app.kubernetes.io/name: {{ $name }}
         {{- include "microservices.labels" $ | nindent 8 }}
       annotations:
+        # Istio / Cloud Service Mesh sidecar startup ordering (opt-in mesh - infra repo
+        # serviceMesh.mode=cloud-service-mesh, docs/506 App mesh-readiness): make the app
+        # container wait until the istio-proxy sidecar is ready before starting, so it does
+        # NOT dial Postgres/OTel before the proxy routes traffic and CrashLoop. SELF-GATING:
+        # inert when the mesh is off (no sidecar injected, so this annotation is dead
+        # metadata) - no explicit flag needed.
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
         {{- if eq $svc.type "java" }}
         # OTel Operator auto-instrumentation: injects the Java agent via an
         # init container, wired to the "microservices-java" Instrumentation CR
