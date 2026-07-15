@@ -37,6 +37,17 @@ spec:
         # inert when the mesh is off (no sidecar injected, so this annotation is dead
         # metadata) - no explicit flag needed.
         proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+        # Istio / CSM sidecar RESOURCE limits (same SELF-GATING: dead metadata without a
+        # sidecar). CSM's istio-proxy defaults to limits.cpu=2 - DOUBLE the app's own 1 CPU -
+        # so every meshed pod costs 3 CPU of microservices-quota (limits.cpu=10) instead of 1.
+        # With 2 meshed apps that pins usage at 8.4/10, and a rolling update's surge pod (+3)
+        # is then REJECTED ("exceeded quota: microservices-quota") -> the Deployment never
+        # progresses -> ArgoCD turns Degraded -> `argocd app wait --health` fails the build
+        # with exit 20. Caught live on build jhipstersamplemicroservice #2.
+        # 500m/512Mi is ample for a PoC sidecar and drops a meshed pod to 1.5 CPU: steady
+        # 5.4/10, both rollouts surging 8.4/10 - comfortable. See docs/506 (sidecar cost).
+        sidecar.istio.io/proxyCPULimit: "500m"
+        sidecar.istio.io/proxyMemoryLimit: "512Mi"
         {{- if eq $svc.type "java" }}
         # OTel Operator auto-instrumentation: injects the Java agent via an
         # init container, wired to the "microservices-java" Instrumentation CR
