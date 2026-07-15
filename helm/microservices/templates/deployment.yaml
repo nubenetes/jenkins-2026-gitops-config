@@ -53,6 +53,14 @@ spec:
         # init container, wired to the "microservices-java" Instrumentation CR
         # (templates/instrumentation.yaml) in this namespace.
         instrumentation.opentelemetry.io/inject-java: "true"
+        # PIN the container the agent goes into. Unset, the operator instruments the FIRST
+        # container - and CSM injects istio-proxy AHEAD of the app, so the -javaagent landed
+        # on Envoy (a Go binary, where it does nothing) while the app container got no agent
+        # at all: the Java app silently lost ALL instrumentation and every OTel-fed Grafana
+        # panel went "No data" (the pipeline OTel Self-Heal check still passed - it only
+        # greps *any* container for -javaagent). Naming the app container is SELF-GATING:
+        # without a mesh the app is the first container anyway, so this is a no-op.
+        instrumentation.opentelemetry.io/container-names: "{{ $name }}"
         {{- end }}
     spec:
       {{- if $.Values.imagePullSecret }}
