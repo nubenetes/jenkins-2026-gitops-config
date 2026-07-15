@@ -64,3 +64,13 @@ services:
         value: "bXktc2VjcmV0LWtleS13aGljaC1zaG91bGQtYmUtY2hhbmdlZC1pbi1wcm9kdWN0aW9uLWFuZC1iZS1iYXNlNjQtZW5jb2RlZAo="
       - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
         value: "always"
+demo-service:
+  enabled: true
+  port: 8082
+  healthPath: /management/health
+  replicas: 1
+  env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: prod
+    - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+      value: "always"
